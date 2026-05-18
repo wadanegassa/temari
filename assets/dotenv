@@ -1,0 +1,6 @@
+# Temari — default env (safe to commit). Override with a root `.env` (gitignored)
+# or pass --dart-define=KEY=value.
+
+GEMINI_API_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
