@@ -1,4 +1,6 @@
-# Miscellaneous
+# Local secrets (copy from .env.example)
+.env
+
 *.class
 *.log
 *.pyc
