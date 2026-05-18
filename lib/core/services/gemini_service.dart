@@ -9,7 +9,7 @@ import '../config/app_env.dart';
 class GeminiService {
   GeminiService({String? apiKey}) : _apiKey = apiKey ?? AppEnv.geminiApiKey;
 
-  static const _model = 'gemini-1.5-flash';
+  static const _model = 'gemini-3.1-flash-lite';
   static final _generateUrl = Uri.parse(
     'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent',
   );
