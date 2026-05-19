@@ -3,32 +3,50 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const primary = Color(0xFF1B1F3B);
-  static const accent = Color(0xFF4F7FFF);
-  static const accentSoft = Color(0xFFEEF3FF);
+  // Backgrounds
+  static const bgPrimary    = Color(0xFFF8F5EF); // warm parchment — main bg
+  static const bgSecondary  = Color(0xFFEFEBE3); // slightly darker — section bg
+  static const bgCard       = Color(0xFFFFFFFF); // cards
+  static const bgDark       = Color(0xFF151210); // dark surfaces (bottom sheets, overlays)
 
-  static const bg = Color(0xFFF7F7F5);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF0EFE9);
+  // Brand
+  static const ink          = Color(0xFF1A1714); // primary text — near black, warm
+  static const inkMid       = Color(0xFF4A4540); // secondary text
+  static const inkLight     = Color(0xFF9A948E); // tertiary / placeholder
 
-  static const textPrimary = Color(0xFF1B1F3B);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textTertiary = Color(0xFFB0B4BC);
+  // Accent
+  static const accent       = Color(0xFFD4622A); // terracotta — primary CTA, highlights
+  static const accentSoft   = Color(0xFFFAEDE6); // accent bg tint
+  static const accentGlow   = Color(0xFFFF8A5C); // lighter accent for gradients
 
-  static const success = Color(0xFF16A34A);
-  static const warning = Color(0xFFF59E0B);
-  static const error = Color(0xFFDC2626);
+  // Semantic
+  static const success      = Color(0xFF2A7A4B);
+  static const successSoft  = Color(0xFFE6F5ED);
+  static const warning      = Color(0xFFB87A00);
+  static const warningSoft  = Color(0xFFFFF3D6);
+  static const error        = Color(0xFFC0392B);
+  static const errorSoft    = Color(0xFFFAEAE8);
 
-  static const border = Color(0xFFE8E8E4);
+  // Borders
+  static const border       = Color(0xFFE3DDD6); // standard border
+  static const borderStrong = Color(0xFFCBC4BC); // emphasized border
 
+  // Subject colors — warm, distinct, readable
   static const subjectColors = <Color>[
-    Color(0xFF4F7FFF),
-    Color(0xFF7C3AED),
-    Color(0xFF059669),
-    Color(0xFFD97706),
-    Color(0xFFDB2777),
-    Color(0xFF0891B2),
-    Color(0xFF65A30D),
-    Color(0xFFEA580C),
+    Color(0xFFD4622A), // terracotta
+    Color(0xFF2E6B9E), // ocean blue
+    Color(0xFF3A7D5C), // forest green
+    Color(0xFF7B4EA0), // plum
+    Color(0xFFB5860D), // golden
+    Color(0xFF2E7D8C), // teal
+    Color(0xFFC0392B), // red
   ];
+
+  // Backwards compatibility aliases to support existing unchanged widgets
+  static const bg = bgPrimary;
+  static const primary = accent;
+  static const textPrimary = ink;
+  static const textTertiary = inkLight;
+  static const surfaceAlt = bgSecondary;
+  static const surface = bgCard;
 }
