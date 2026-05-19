@@ -14,40 +14,36 @@ class StudyStreakBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(languageProvider);
     final sessions = ref.watch(hiveServiceProvider).sessions;
+    
+    // Simple mock calculation or reading from sessions
     final streak = sessions.isEmpty ? 1 : sessions.length.clamp(1, 99);
+
+    final text = lang == 'am'
+        ? "🔥 $streak-ቀን ቅደም ተከተል — ቀጥልበት!"
+        : (lang == 'om'
+            ? "🔥 Guyyaa $streak walitti aansee — itti fufi!"
+            : "🔥 $streak-day streak — keep it up!");
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        color: AppColors.accentSoft,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: AppColors.accent, width: 1.2),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.accentSoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.local_fire_department_outlined,
-                color: AppColors.accent),
-          ),
-          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.get('streak', lang),
-                  style: AppTextStyles.label,
-                ),
-                Text(
-                  '$streak ${lang == 'en' ? 'days' : ''}',
-                  style: AppTextStyles.h3,
-                ),
-              ],
+            child: Text(
+              text,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
