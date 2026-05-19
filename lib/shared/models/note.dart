@@ -29,6 +29,8 @@ class Note {
     this.aiExplanationByLang,
     this.predictedQuestions,
     this.predictedQuestionsByLang,
+    this.mindmapJson,
+    this.mindmapJsonByLang,
     required this.language,
     required this.createdAt,
     required this.updatedAt,
@@ -49,6 +51,8 @@ class Note {
   Map<String, String>? aiExplanationByLang;
   List<String>? predictedQuestions;
   Map<String, List<String>>? predictedQuestionsByLang;
+  String? mindmapJson;
+  Map<String, String>? mindmapJsonByLang;
   String language;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -92,6 +96,8 @@ class Note {
         'ai_explanation_by_lang': aiExplanationByLang,
         'predicted_questions': predictedQuestions,
         'predicted_questions_by_lang': predictedQuestionsByLang,
+        'mindmap_json': mindmapJson,
+        'mindmap_json_by_lang': mindmapJsonByLang,
         'language': language,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
@@ -104,6 +110,7 @@ class Note {
     if (raw is Map) {
       byLang = raw.map((k, v) => MapEntry(k.toString(), v.toString()));
     }
+
     Map<String, List<String>>? predByLang;
     final pr = j['predicted_questions_by_lang'];
     if (pr is Map) {
@@ -114,6 +121,13 @@ class Note {
         ),
       );
     }
+
+    Map<String, String>? mapByLang;
+    final mr = j['mindmap_json_by_lang'];
+    if (mr is Map) {
+      mapByLang = mr.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }
+
     return Note(
       id: j['id'] as String,
       userId: (j['user_id'] ?? j['userId']) as String,
@@ -130,6 +144,8 @@ class Note {
           ?.map((e) => e.toString())
           .toList(),
       predictedQuestionsByLang: predByLang,
+      mindmapJson: j['mindmap_json'] as String?,
+      mindmapJsonByLang: mapByLang,
       language: (j['language'] ?? 'en') as String,
       createdAt: DateTime.parse(j['created_at'] as String),
       updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ??
