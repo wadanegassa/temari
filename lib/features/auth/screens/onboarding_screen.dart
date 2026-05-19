@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_strings.dart';
+import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
 import '../../settings/providers/settings_provider.dart';
 
@@ -16,85 +16,133 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final _page = PageController();
-  int _i = 0;
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
 
   @override
   void dispose() {
-    _page.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
+
+    final List<_OnboardingSlideData> slides = [
+      _OnboardingSlideData(
+        icon: Icons.mic_none_outlined,
+        title: lang == 'am'
+            ? 'ድምፅ፣ ፎቶ ወይም ፒዲኤፍ'
+            : (lang == 'om' ? 'Sagalee, suuraa ykn PDF' : 'Voice, photo, or file'),
+        body: lang == 'am'
+            ? 'የጥናት ማስታወሻዎችን በማንኛውም መንገድ ይጨምሩ።'
+            : (lang == 'om'
+                ? 'Yaada barruu keessan karaa barbaaddan dabaladhaa.'
+                : 'Add your lecture notes any way you want.'),
+      ),
+      _OnboardingSlideData(
+        icon: Icons.style_outlined,
+        title: lang == 'am'
+            ? 'በአርቴፊሻል ኢንተለጀንስ በጥልቀት'
+            : (lang == 'om' ? 'AI\'n gadi fageenyaan ibsa' : 'AI explains it deeply'),
+        body: lang == 'am'
+            ? 'ሁሉንም ነገር በአማርኛ፣ በኦሮምኛ ወይም በእንግሊዝኛ ይረዱ።'
+            : (lang == 'om'
+                ? 'Afaan Oromoo, Amaaraa ykn Ingiliffaan hunda hubadhaa.'
+                : 'Understand anything in Amharic, Afaan Oromo, or English.'),
+      ),
+      _OnboardingSlideData(
+        icon: Icons.wifi_off_outlined,
+        title: lang == 'am'
+            ? 'ከመስመር ውጭ ይሰራል'
+            : (lang == 'om' ? 'Ala sararaa hojjata' : 'Works offline'),
+        body: lang == 'am'
+            ? 'ማስታወሻዎችዎ እና ፍላሽካርዶችዎ ሁልጊዜ ከእርስዎ ጋር ናቸው።'
+            : (lang == 'om'
+                ? 'Yaadannoowwan keessan yeroo hunda bilbila keessan keessa jiru.'
+                : 'Your notes and flashcards are always with you — no internet needed.'),
+      ),
+    ];
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => context.go('/language'),
-                child: Text(
-                  AppStrings.get('skip', ref.watch(languageProvider)),
-                  style: AppTextStyles.bodySmall,
+            // Top Nav skip action
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ScaleOnPress(
+                  onTap: () => context.go('/auth'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      lang == 'am' ? 'ዝለል' : (lang == 'om' ? 'Darbi' : 'Skip'),
+                      style: AppTextStyles.small.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkMid,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
+            // Sliders area
             Expanded(
-              child: PageView(
-                controller: _page,
-                onPageChanged: (v) => setState(() => _i = v),
-                children: const [
-                  _Slide(
-                    icon: Icons.school_outlined,
-                    titleKey: 'onboarding_1_title',
-                    bodyKey: 'onboarding_1_body',
-                  ),
-                  _Slide(
-                    icon: Icons.translate_outlined,
-                    titleKey: 'onboarding_2_title',
-                    bodyKey: 'onboarding_2_body',
-                  ),
-                  _Slide(
-                    icon: Icons.wifi_off_outlined,
-                    titleKey: 'onboarding_3_title',
-                    bodyKey: 'onboarding_3_body',
-                  ),
-                ],
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+                itemCount: slides.length,
+                itemBuilder: (context, index) {
+                  final slide = slides[index];
+                  return _SlideWidget(
+                    icon: slide.icon,
+                    title: slide.title,
+                    body: slide.body,
+                  );
+                },
               ),
             ),
+            // Dots progress indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                3,
-                (i) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _i == i ? 22 : 8,
-                  height: 8,
+                slides.length,
+                (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 240),
+                  margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                  width: _currentIndex == index ? 24.0 : 8.0,
+                  height: 8.0,
                   decoration: BoxDecoration(
-                    color: _i == i ? AppColors.accent : AppColors.border,
-                    borderRadius: BorderRadius.circular(8),
+                    color: _currentIndex == index ? AppColors.accent : AppColors.borderStrong,
+                    borderRadius: BorderRadius.circular(4.0),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 32),
+            // Bottom Action
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 32.0),
               child: TemariButton(
-                label: _i < 2
-                    ? AppStrings.get('next', ref.watch(languageProvider))
-                    : AppStrings.get('get_started', ref.watch(languageProvider)),
+                label: _currentIndex < slides.length - 1
+                    ? (lang == 'am' ? 'ቀጣይ →' : (lang == 'om' ? 'Itti aanu →' : 'Next →'))
+                    : (lang == 'am' ? 'እንጀምር' : (lang == 'om' ? 'Jalqabi' : 'Get Started')),
                 onPressed: () {
-                  if (_i < 2) {
-                    _page.nextPage(
-                      duration: const Duration(milliseconds: 320),
+                  if (_currentIndex < slides.length - 1) {
+                    _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOutCubic,
                     );
                   } else {
-                    context.go('/language');
+                    context.go('/auth');
                   }
                 },
               ),
@@ -106,44 +154,81 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class _Slide extends ConsumerWidget {
-  const _Slide({
+class _OnboardingSlideData {
+  _OnboardingSlideData({
     required this.icon,
-    required this.titleKey,
-    required this.bodyKey,
+    required this.title,
+    required this.body,
+  });
+  final IconData icon;
+  final String title;
+  final String body;
+}
+
+class _SlideWidget extends StatelessWidget {
+  const _SlideWidget({
+    required this.icon,
+    required this.title,
+    required this.body,
   });
 
   final IconData icon;
-  final String titleKey;
-  final String bodyKey;
+  final String title;
+  final String body;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lang = ref.watch(languageProvider);
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 32.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Styled geometric abstract box
           Container(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
               color: AppColors.accentSoft,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppColors.border, width: 1.5),
             ),
-            child: Icon(icon, size: 56, color: AppColors.accent),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 64,
+                  color: AppColors.accent,
+                ),
+                // Small waves or details
+                if (icon == Icons.mic_none_outlined)
+                  Positioned(
+                    right: 28,
+                    top: 28,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: const BoxDecoration(
+                        color: AppColors.accentGlow,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           Text(
-            AppStrings.get(titleKey, lang),
+            title,
             style: AppTextStyles.h1,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
-            AppStrings.get(bodyKey, lang),
-            style: AppTextStyles.body,
+            body,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.inkMid,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
