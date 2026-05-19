@@ -12,17 +12,20 @@ import 'features/auth/screens/splash_screen.dart';
 import 'features/flashcards/screens/exam_mode_screen.dart';
 import 'features/flashcards/screens/flashcards_screen.dart';
 import 'features/home/screens/home_screen.dart';
+import 'features/home/screens/main_navigation_container.dart';
 import 'features/notes/screens/file_note_screen.dart';
 import 'features/notes/screens/note_detail_screen.dart';
 import 'features/notes/screens/photo_note_screen.dart';
 import 'features/notes/screens/text_note_screen.dart';
 import 'features/notes/screens/voice_note_screen.dart';
+import 'features/notes/screens/mindmap_canvas_screen.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/settings/screens/language_pick_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/subjects/screens/create_subject_screen.dart';
 import 'features/subjects/screens/subject_detail_screen.dart';
 import 'features/subjects/screens/subjects_screen.dart';
+import 'features/timer/screens/pomodoro_timer_screen.dart';
 
 final _navKey = GlobalKey<NavigatorState>();
 
@@ -30,19 +33,19 @@ ThemeData buildTemariTheme() {
   final base = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    scaffoldBackgroundColor: AppColors.bg,
+    scaffoldBackgroundColor: AppColors.bgPrimary,
     splashFactory: InkRipple.splashFactory,
   );
   return base.copyWith(
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.accent,
-      primary: AppColors.primary,
-      surface: AppColors.surface,
+      primary: AppColors.accent,
+      surface: AppColors.bgCard,
       brightness: Brightness.light,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.bg,
-      foregroundColor: AppColors.textPrimary,
+      backgroundColor: AppColors.bgPrimary,
+      foregroundColor: AppColors.ink,
       elevation: 0,
       scrolledUnderElevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.dark,
@@ -50,7 +53,7 @@ ThemeData buildTemariTheme() {
     dividerColor: AppColors.border,
     textTheme: TextTheme(
       bodyLarge: AppTextStyles.body,
-      bodyMedium: AppTextStyles.bodySmall,
+      bodyMedium: AppTextStyles.small,
       titleLarge: AppTextStyles.h2,
     ),
   );
@@ -107,7 +110,7 @@ GoRouter createRouter(WidgetRef ref) {
       ),
       GoRoute(
         path: '/home',
-        builder: (_, __) => const HomeScreen(),
+        builder: (_, __) => const MainNavigationContainer(),
       ),
       GoRoute(
         path: '/subjects',
@@ -128,8 +131,10 @@ GoRouter createRouter(WidgetRef ref) {
       ),
       GoRoute(
         path: '/note/photo',
-        builder: (_, s) =>
-            PhotoNoteScreen(subjectId: s.uri.queryParameters['subjectId']),
+        builder: (_, s) => PhotoNoteScreen(
+          subjectId: s.uri.queryParameters['subjectId'],
+          immediateCapture: s.uri.queryParameters['immediate'] == 'true',
+        ),
       ),
       GoRoute(
         path: '/note/pdf',
@@ -158,6 +163,14 @@ GoRouter createRouter(WidgetRef ref) {
       GoRoute(
         path: '/settings',
         builder: (_, __) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/timer',
+        builder: (_, __) => const PomodoroTimerScreen(),
+      ),
+      GoRoute(
+        path: '/mindmap/:noteId',
+        builder: (_, s) => MindMapCanvasScreen(noteId: s.pathParameters['noteId']!),
       ),
     ],
   );
