@@ -46,9 +46,16 @@ class _TextNoteScreenState extends ConsumerState<TextNoteScreen> {
     _explain = '';
     final gemini = ref.read(geminiServiceProvider);
     final lang = ref.read(languageProvider);
+
+    final subs = ref.read(subjectsProvider);
+    final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
+    final subject = ref.read(hiveServiceProvider).getSubject(sid);
+    final subjectName = subject?.name;
+
     final stream = gemini.explainText(
       content: _text.text,
       language: lang,
+      subjectName: subjectName,
     );
     await for (final c in stream) {
       _explain += c;
