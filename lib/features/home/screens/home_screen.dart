@@ -1,8 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -13,6 +13,7 @@ import '../../subjects/providers/subjects_provider.dart';
 import '../widgets/recent_note_tile.dart';
 import '../widgets/study_streak_banner.dart';
 import '../widgets/subject_card.dart';
+import '../../../shared/widgets/scale_on_press.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -32,30 +33,141 @@ class HomeScreen extends ConsumerWidget {
     final notes = ref.watch(hiveServiceProvider).notes;
     final name = ref.watch(settingsControllerProvider).displayName ?? 'Wada';
 
+    // Mock active study timer check (we'll implement the actual Pomodoro notifier shortly)
+    final timerSessionBox = ref.watch(hiveServiceProvider).timerSessions;
+    final isTimerActive = timerSessionBox.isNotEmpty && 
+        DateTime.now().difference(timerSessionBox.first.createdAt).inMinutes < timerSessionBox.first.durationMinutes;
+    
+    final formattedDate = DateFormat('EEEE, d MMMM').format(DateTime.now());
+
+    // Calculate due cards summary across subjects
+    final flashcards = ref.watch(hiveServiceProvider).flashcards;
+    final dueCards = flashcards.where((c) => c.nextReview.isBefore(DateTime.now())).toList();
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
           slivers: [
+            // Top Nav Row
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Row(
                   children: [
                     Text(
-                      AppStrings.get('app_name', lang),
-                      style: AppTextStyles.h3.copyWith(letterSpacing: -0.2),
+                      'Temari',
+                      style: AppTextStyles.h2.copyWith(
+                        color: AppColors.accent,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined),
-                      color: AppColors.textPrimary,
-                      onPressed: () => context.push('/settings'),
+                    ScaleOnPress(
+                      onTap: () => context.push('/settings'),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(
+                          color: AppColors.accentSoft,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'T',
+                          style: AppTextStyles.h3.copyWith(
+                            color: AppColors.accent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+
+            // Greeting Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_greeting(lang)}, $name',
+                      style: AppTextStyles.h1.copyWith(
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formattedDate,
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.inkLight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Streak Banner (🔥)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: StudyStreakBanner(),
+              ),
+            ),
+
+            // Study Timer Pill-Card (Visible if a Pomodoro focus state is running)
+            if (isTimerActive)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  child: ScaleOnPress(
+                    onTap: () => context.push('/timer'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgDark,
+                        borderRadius: BorderRadius.circular(100),
+                        border: const Border(
+                          left: BorderSide(color: AppColors.accent, width: 4),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            '⏱ Focus Round is active · Learning',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'View →',
+                            style: AppTextStyles.small.copyWith(
+                              color: AppColors.accentGlow,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Quick Actions "QUICK ADD"
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -63,60 +175,34 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_greeting(lang)}, $name 👋',
-                      style: AppTextStyles.h2,
-                    ),
-                    const SizedBox(height: 12),
-                    const StudyStreakBanner(),
-                    const SizedBox(height: 24),
-                    Text(
-                      AppStrings.get('quick_add_voice', lang),
-                      style: AppTextStyles.label,
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 76,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _Quick(
-                            icon: Icons.mic_none_rounded,
-                            bg: const Color(0xFFE8F0FF),
-                            label: AppStrings.get('quick_add_voice', lang),
-                            onTap: () => context.push('/note/voice'),
-                          ),
-                          _Quick(
-                            icon: Icons.photo_camera_outlined,
-                            bg: const Color(0xFFF3E8FF),
-                            label: AppStrings.get('quick_add_photo', lang),
-                            onTap: () => context.push('/note/photo'),
-                          ),
-                          _Quick(
-                            icon: Icons.picture_as_pdf_outlined,
-                            bg: const Color(0xFFE7F8EF),
-                            label: AppStrings.get('quick_add_file', lang),
-                            onTap: () => context.push('/note/pdf'),
-                          ),
-                          _Quick(
-                            icon: Icons.edit_outlined,
-                            bg: const Color(0xFFFFF4E5),
-                            label: AppStrings.get('quick_add_text', lang),
-                            onTap: () => context.push('/note/text'),
-                          ),
-                        ],
+                      'QUICK ADD',
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.inkLight,
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 14),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          AppStrings.get('your_subjects', lang),
-                          style: AppTextStyles.h3,
+                        _QuickActionTile(
+                          icon: Icons.mic_none_outlined,
+                          label: AppStrings.get('quick_add_voice', lang),
+                          onTap: () => context.push('/note/voice'),
                         ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () => context.push('/subjects/new'),
-                          child: Text(AppStrings.get('add_subject', lang)),
+                        _QuickActionTile(
+                          icon: Icons.photo_camera_outlined,
+                          label: AppStrings.get('quick_add_photo', lang),
+                          onTap: () => context.push('/note/photo?immediate=true'),
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.upload_file_outlined,
+                          label: AppStrings.get('quick_add_file', lang),
+                          onTap: () => context.push('/note/pdf'),
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.edit_outlined,
+                          label: AppStrings.get('quick_add_text', lang),
+                          onTap: () => context.push('/note/text'),
                         ),
                       ],
                     ),
@@ -124,19 +210,100 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
+            // Due for Review horizontal pill (if flashcards are pending review)
+            if (dueCards.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  child: ScaleOnPress(
+                    onTap: () {
+                      final randomDue = dueCards.first;
+                      context.push('/exam/${randomDue.subjectId}');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: AppColors.warning, width: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.style_outlined, color: AppColors.warning, size: 18),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${dueCards.length} flashcards due for review today',
+                            style: AppTextStyles.small.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.warning, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Subjects Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      AppStrings.get('your_subjects', lang),
+                      style: AppTextStyles.h3.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const Spacer(),
+                    ScaleOnPress(
+                      onTap: () => context.push('/subjects'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Text(
+                          'See all →',
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             if (subjects.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    AppStrings.get('empty_subjects', lang),
-                    style: AppTextStyles.bodySmall,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSecondary,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      AppStrings.get('empty_subjects', lang),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.inkMid,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -147,34 +314,52 @@ class HomeScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
                       final s = subjects[i];
-                      final count =
-                          notes.where((n) => n.subjectId == s.id).length;
+                      final count = notes.where((n) => n.subjectId == s.id).length;
                       return SubjectCard(
                         subject: s,
                         noteCount: count,
                         onTap: () => context.push('/subject/${s.id}'),
                       );
                     },
-                    childCount: subjects.length,
+                    childCount: subjects.length > 4 ? 4 : subjects.length,
                   ),
                 ),
               ),
+
+            // Recently Added Notes Section
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                 child: Text(
-                  AppStrings.get('recent_notes', lang),
-                  style: AppTextStyles.h3,
+                  lang == 'am'
+                      ? 'የቅርብ ጊዜ ማስታወሻዎች'
+                      : (lang == 'om' ? 'Yaadannoo dhiyoo' : 'Recently Added'),
+                  style: AppTextStyles.h3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
             ),
+
             if (notes.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    AppStrings.get('empty_notes', lang),
-                    style: AppTextStyles.bodySmall,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSecondary,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      AppStrings.get('empty_notes', lang),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.inkMid,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               )
@@ -183,12 +368,18 @@ class HomeScreen extends ConsumerWidget {
                 delegate: SliverChildBuilderDelegate(
                   (context, i) {
                     final n = notes[i];
-                    final sub =
-                        subjects.firstWhereOrNull((s) => s.id == n.subjectId);
+                    final sub = subjects.firstWhereOrNull((s) => s.id == n.subjectId);
                     final subName = sub?.name ?? '';
+                    Color? subColor;
+                    if (sub != null) {
+                      try {
+                        subColor = Color(int.parse('FF${sub.colorHex.replaceAll('#', '')}', radix: 16));
+                      } catch (_) {}
+                    }
                     return RecentNoteTile(
                       note: n,
                       subjectName: subName,
+                      subjectColor: subColor,
                       onTap: () => context.push('/note/${n.id}'),
                     );
                   },
@@ -203,68 +394,61 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Quick extends StatefulWidget {
-  const _Quick({
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({
     required this.icon,
-    required this.bg,
     required this.label,
     required this.onTap,
   });
 
   final IconData icon;
-  final Color bg;
   final String label;
   final VoidCallback onTap;
 
   @override
-  State<_Quick> createState() => _QuickState();
-}
-
-class _QuickState extends State<_Quick> {
-  double _s = 1;
-
-  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTapDown: (_) => setState(() => _s = 0.97),
-            onTapCancel: () => setState(() => _s = 1),
-            onTapUp: (_) => setState(() => _s = 1),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onTap();
-            },
-            child: AnimatedScale(
-              scale: _s,
-              duration: const Duration(milliseconds: 120),
-              curve: Curves.easeOut,
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: widget.bg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Icon(widget.icon, color: AppColors.primary),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
+    return Column(
+      children: [
+        ScaleOnPress(
+          onTap: onTap,
+          child: Container(
             width: 72,
-            child: Text(
-              widget.label,
-              style: AppTextStyles.label.copyWith(fontSize: 11),
-              maxLines: 2,
-              textAlign: TextAlign.center,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border, width: 1),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x06000000),
+                  offset: Offset(0, 1),
+                  blurRadius: 2,
+                )
+              ],
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: AppColors.accent,
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: AppTextStyles.label.copyWith(
+              color: AppColors.inkMid,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
     );
   }
 }
