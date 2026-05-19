@@ -6,12 +6,14 @@ import '../../shared/models/exam_session.dart';
 import '../../shared/models/flashcard.dart';
 import '../../shared/models/note.dart';
 import '../../shared/models/subject.dart';
+import '../../shared/models/timer_session.dart';
 
 const kSettingsBox = 'settingsBox';
 const kSubjectsBox = 'subjectsBox';
 const kNotesBox = 'notesBox';
 const kFlashcardsBox = 'flashcardsBox';
-const kSessionsBox = 'sessionsBox';
+const kSessionsBox = 'sessionsBox'; // Exam sessions
+const kTimerSessionsBox = 'timerSessionsBox'; // Pomodoro sessions
 
 class HiveService {
   Box<Map>? _settings;
@@ -19,6 +21,7 @@ class HiveService {
   Box<Map>? _notes;
   Box<Map>? _flashcards;
   Box<Map>? _sessions;
+  Box<Map>? _timerSessions;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -27,6 +30,7 @@ class HiveService {
     _notes = await Hive.openBox<Map>(kNotesBox);
     _flashcards = await Hive.openBox<Map>(kFlashcardsBox);
     _sessions = await Hive.openBox<Map>(kSessionsBox);
+    _timerSessions = await Hive.openBox<Map>(kTimerSessionsBox);
   }
 
   Map<String, dynamic> _castMap(dynamic v) =>
@@ -139,7 +143,7 @@ class HiveService {
     await _flashcards?.delete(id);
   }
 
-  // --- Sessions ---
+  // --- Exam Sessions ---
   List<ExamSession> get sessions {
     final box = _sessions;
     if (box == null) return [];
@@ -153,6 +157,20 @@ class HiveService {
     await _sessions?.put(s.id, s.toJson());
   }
 
+  // --- Timer Sessions ---
+  List<TimerSession> get timerSessions {
+    final box = _timerSessions;
+    if (box == null) return [];
+    return box.values
+        .map((e) => TimerSession.fromJson(_castMap(e)))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Future<void> upsertTimerSession(TimerSession s) async {
+    await _timerSessions?.put(s.id, s.toJson());
+  }
+
   /// Full JSON export for settings screen.
   String exportAllJson() {
     return const JsonEncoder.withIndent('  ').convert({
@@ -161,6 +179,7 @@ class HiveService {
       'notes': notes.map((e) => e.toJson()).toList(),
       'flashcards': flashcards.map((e) => e.toJson()).toList(),
       'sessions': sessions.map((e) => e.toJson()).toList(),
+      'timer_sessions': timerSessions.map((e) => e.toJson()).toList(),
     });
   }
 
@@ -169,6 +188,7 @@ class HiveService {
     await _notes?.clear();
     await _flashcards?.clear();
     await _sessions?.clear();
+    await _timerSessions?.clear();
     final uid = settingsRaw['local_user_id'];
     final lang = settingsRaw['language'] ?? 'en';
     final onboard = settingsRaw['onboarding_complete'] ?? false;
