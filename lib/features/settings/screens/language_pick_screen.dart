@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/language_helper.dart';
+import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
-import '../../settings/providers/settings_provider.dart';
+import '../providers/settings_provider.dart';
 
 class LanguagePickScreen extends ConsumerWidget {
   const LanguagePickScreen({super.key});
@@ -17,41 +17,61 @@ class LanguagePickScreen extends ConsumerWidget {
     final lang = ref.watch(languageProvider);
     final settings = ref.read(settingsControllerProvider);
 
-    Widget tile(String code, String title, String subtitle) {
-      final selected = lang == code;
+    Widget languageTile(String code, String emoji, String title, String nativeName) {
+      final isSelected = lang == code;
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: Material(
-          color: selected ? AppColors.accentSoft : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => settings.setLanguage(code),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: selected ? AppColors.accent : AppColors.border,
-                ),
+        child: ScaleOnPress(
+          onTap: () => settings.setLanguage(code),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? AppColors.accent : AppColors.border,
+                width: isSelected ? 1.5 : 1.0,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: AppTextStyles.h3),
-                        const SizedBox(height: 4),
-                        Text(subtitle, style: AppTextStyles.bodySmall),
-                      ],
+            ),
+            child: Row(
+              children: [
+                // Highlight indicator strip on left edge
+                if (isSelected)
+                  Container(
+                    width: 3,
+                    height: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(14),
+                        bottomLeft: Radius.circular(14),
+                      ),
                     ),
+                  )
+                else
+                  const SizedBox(width: 3),
+                const SizedBox(width: 16),
+                Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: AppTextStyles.h3.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: AppColors.ink,
                   ),
-                  if (selected)
-                    const Icon(Icons.check_circle, color: AppColors.accent),
-                ],
-              ),
+                ),
+                const Spacer(),
+                Text(
+                  nativeName,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.inkMid,
+                  ),
+                ),
+                const SizedBox(width: 16),
+              ],
             ),
           ),
         ),
@@ -59,28 +79,115 @@ class LanguagePickScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppStrings.get('language_pick_title', lang),
-                style: AppTextStyles.h1,
+        top: false,
+        child: Column(
+          children: [
+            // Top 40% — Stylized geometric parchment/terracotta art representation
+            Expanded(
+              flex: 4,
+              child: Container(
+                color: AppColors.bgPrimary,
+                child: Center(
+                  child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentSoft,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.borderStrong, width: 2),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Stylized book and soundwaves
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 72,
+                          color: AppColors.accent,
+                        ),
+                        Positioned(
+                          bottom: 24,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              5,
+                              (index) => Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                width: 4,
+                                height: (index == 2 ? 24.0 : (index % 2 == 0 ? 12.0 : 18.0)),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentGlow,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 24),
-              tile(kLangEnglish, 'English', 'Study in English'),
-              tile(kLangAmharic, 'አማርኛ', 'Amharic'),
-              tile(kLangOromo, 'Afaan Oromo', 'Oromiffa'),
-              const Spacer(),
-              TemariButton(
-                label: AppStrings.get('next', lang),
-                onPressed: () => context.go('/auth'),
+            ),
+            // Bottom 60% — White rounded top sheet container
+            Expanded(
+              flex: 6,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x0C000000),
+                      offset: Offset(0, -4),
+                      blurRadius: 16,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Choose your language',
+                      style: AppTextStyles.h1,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ቋንቋዎን ይምረጡ • Afaan filadhu',
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          languageTile(kLangEnglish, '🇬🇧', 'English', 'English'),
+                          languageTile(kLangAmharic, '🇪🇹', 'አማርኛ', 'Amharic'),
+                          languageTile(kLangOromo, '🟢', 'Afaan Oromo', 'Oromiffa'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TemariButton(
+                      label: 'Next →',
+                      onPressed: () {
+                        // Progress to Onboarding Screen slides
+                        context.go('/onboarding');
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
