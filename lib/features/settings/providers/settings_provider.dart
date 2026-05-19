@@ -32,6 +32,8 @@ class SettingsController extends ChangeNotifier {
 
   String? get displayName => _s['display_name'] as String?;
 
+  bool get isPro => _s['is_pro'] == true;
+
   Future<void> setLanguage(String code) async {
     await _hive.patchSettings({'language': code});
     notifyListeners();
@@ -57,6 +59,11 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setAutoFlashcards(bool v) async {
     await _hive.patchSettings({'auto_flashcards': v});
+    notifyListeners();
+  }
+
+  Future<void> setPro(bool v) async {
+    await _hive.patchSettings({'is_pro': v});
     notifyListeners();
   }
 }
