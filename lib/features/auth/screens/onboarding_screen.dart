@@ -55,13 +55,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _OnboardingSlideData(
         icon: Icons.wifi_off_outlined,
         title: lang == 'am'
-            ? 'ከመስመር ውጭ ይሰራል'
-            : (lang == 'om' ? 'Ala sararaa hojjata' : 'Works offline'),
+          ? 'AI በመስመር ላይ ይሰራል'
+          : (lang == 'om' ? 'AI yeroo sarararra hojjata' : 'AI works online'),
         body: lang == 'am'
-            ? 'ማስታወሻዎችዎ እና ፍላሽካርዶችዎ ሁልጊዜ ከእርስዎ ጋር ናቸው።'
+          ? 'AI ማብራሪያዎች፣ ፍላሽካርዶች እና የፈተና ጥያቄዎች ለመፍጠር በይነመረብ ያስፈልጋል።'
             : (lang == 'om'
-                ? 'Yaadannoowwan keessan yeroo hunda bilbila keessan keessa jiru.'
-                : 'Your notes and flashcards are always with you — no internet needed.'),
+            ? 'AI ibsa, kaardoota fi gaaffilee qorannoo uumuuf interneetiin barbaachisa.'
+            : 'AI explanations, flashcards, and exam predictions require internet access.'),
       ),
     ];
 
@@ -76,7 +76,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: ScaleOnPress(
-                  onTap: () => context.go('/auth'),
+                  onTap: () => context.go('/chatbot'),
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Text(
@@ -142,7 +142,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       curve: Curves.easeOutCubic,
                     );
                   } else {
-                    context.go('/auth');
+                    context.go('/chatbot');
                   }
                 },
               ),

@@ -42,8 +42,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     
     final settings = ref.read(settingsControllerProvider);
+    final auth = ref.read(authControllerProvider);
+
     if (!settings.onboardingComplete) {
       context.go('/onboarding');
+    } else if (auth.anonymous) {
+      context.go('/chatbot');
     } else {
       context.go('/home');
     }
