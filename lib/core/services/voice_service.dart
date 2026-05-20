@@ -8,12 +8,27 @@ class VoiceService {
   final SpeechToText _speech;
   bool _available = false;
 
+  final List<void Function(String status)> _listeners = [];
+
   bool get isAvailable => _available;
+  bool get isListening => _speech.isListening;
+
+  void addStatusListener(void Function(String status) listener) {
+    _listeners.add(listener);
+  }
+
+  void removeStatusListener(void Function(String status) listener) {
+    _listeners.remove(listener);
+  }
 
   Future<bool> init() async {
     _available = await _speech.initialize(
       onError: (_) {},
-      onStatus: (_) {},
+      onStatus: (status) {
+        for (final listener in _listeners) {
+          listener(status);
+        }
+      },
     );
     return _available;
   }
@@ -24,8 +39,10 @@ class VoiceService {
       onResult: (res) => onUpdate(res.recognizedWords),
       listenFor: const Duration(minutes: 5),
       pauseFor: const Duration(seconds: 4),
-      partialResults: true,
-      cancelOnError: true,
+      listenOptions: SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: true,
+      ),
     );
   }
 
