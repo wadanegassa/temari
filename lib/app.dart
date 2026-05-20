@@ -11,12 +11,11 @@ import 'features/auth/screens/onboarding_screen.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/flashcards/screens/exam_mode_screen.dart';
 import 'features/flashcards/screens/flashcards_screen.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/chat/screens/tutor_chat_screen.dart';
 import 'features/home/screens/main_navigation_container.dart';
 import 'features/notes/screens/file_note_screen.dart';
 import 'features/notes/screens/note_detail_screen.dart';
 import 'features/notes/screens/photo_note_screen.dart';
-import 'features/notes/screens/text_note_screen.dart';
 import 'features/notes/screens/voice_note_screen.dart';
 import 'features/notes/screens/mindmap_canvas_screen.dart';
 import 'features/settings/providers/settings_provider.dart';
@@ -26,6 +25,9 @@ import 'features/subjects/screens/create_subject_screen.dart';
 import 'features/subjects/screens/subject_detail_screen.dart';
 import 'features/subjects/screens/subjects_screen.dart';
 import 'features/timer/screens/pomodoro_timer_screen.dart';
+import 'shared/screens/pdf_viewer_screen.dart';
+import 'shared/screens/chatbot_screen.dart';
+import 'shared/screens/quiz_screen.dart';
 
 final _navKey = GlobalKey<NavigatorState>();
 
@@ -73,21 +75,41 @@ GoRouter createRouter(WidgetRef ref) {
       if (!auth.ready && loc != '/splash') return '/splash';
       if (!auth.ready) return null;
 
+      if (loc == '/splash') return null;
+
+      if (!auth.anonymous) {
+        if (loc == '/splash' ||
+            loc == '/onboarding' ||
+            loc == '/language' ||
+            loc == '/auth' ||
+            loc == '/chatbot') {
+          if (!settings.onboardingComplete) {
+            settings.setOnboardingComplete(true);
+          }
+          return '/home';
+        }
+        return null;
+      }
+
       if (!settings.onboardingComplete) {
         if (loc != '/onboarding' &&
             loc != '/language' &&
             loc != '/splash' &&
-            loc != '/auth') {
+            loc != '/auth' &&
+            loc != '/chatbot') {
           return '/onboarding';
         }
         return null;
       }
 
-      if (loc == '/splash' ||
-          loc == '/onboarding' ||
-          loc == '/language' ||
-          loc == '/auth') {
-        return '/home';
+      if (auth.anonymous) {
+        if (loc == '/onboarding' ||
+            loc == '/language' ||
+            loc == '/home' ||
+            loc == '/settings') {
+          return '/chatbot';
+        }
+        return null;
       }
       return null;
     },
@@ -107,6 +129,24 @@ GoRouter createRouter(WidgetRef ref) {
       GoRoute(
         path: '/auth',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/chatbot',
+        builder: (_, __) => const TutorChatScreen(),
+      ),
+      GoRoute(
+        path: '/chat-session',
+        builder: (_, s) => ChatbotScreen(
+          subjectId: s.uri.queryParameters['subjectId'],
+          noteId: s.uri.queryParameters['noteId'],
+        ),
+      ),
+      GoRoute(
+        path: '/quiz-session',
+        builder: (_, s) => QuizScreen(
+          subjectId: s.uri.queryParameters['subjectId'] ?? '',
+          noteId: s.uri.queryParameters['noteId'],
+        ),
       ),
       GoRoute(
         path: '/home',
@@ -144,7 +184,7 @@ GoRouter createRouter(WidgetRef ref) {
       GoRoute(
         path: '/note/text',
         builder: (_, s) =>
-            TextNoteScreen(subjectId: s.uri.queryParameters['subjectId']),
+            VoiceNoteScreen(subjectId: s.uri.queryParameters['subjectId']),
       ),
       GoRoute(
         path: '/note/:id',
@@ -171,6 +211,13 @@ GoRouter createRouter(WidgetRef ref) {
       GoRoute(
         path: '/mindmap/:noteId',
         builder: (_, s) => MindMapCanvasScreen(noteId: s.pathParameters['noteId']!),
+      ),
+      GoRoute(
+        path: '/pdf-viewer',
+        builder: (_, s) => PdfViewerScreen(
+          filePath: s.uri.queryParameters['filePath'] ?? '',
+          title: s.uri.queryParameters['title'] ?? 'PDF Document',
+        ),
       ),
     ],
   );
