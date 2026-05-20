@@ -1,26 +1,35 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
 import '../config/app_env.dart';
 
-/// Google Gemini multimodal client with bulletproof parsing and offline fallback capability.
+/// Google Gemini multimodal client for online AI generation.
 class GeminiService {
-  GeminiService({String? apiKey}) : _apiKey = apiKey ?? AppEnv.geminiApiKey;
+  GeminiService({String? apiKey, String? model})
+      : _apiKey = apiKey ?? AppEnv.geminiApiKey,
+        _modelOverride = model;
 
-  static const _model = 'gemini-2.5-flash';
-  static final _generateUrl = Uri.parse(
+  final String? _modelOverride;
+  final String _apiKey;
+
+  String get _model => _modelOverride ?? AppEnv.geminiModel;
+
+  Uri get _generateUrl => Uri.parse(
     'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent',
   );
-  static final _streamUrl = Uri.parse(
+  Uri get _streamUrl => Uri.parse(
     'https://generativelanguage.googleapis.com/v1beta/models/$_model:streamGenerateContent',
   );
 
-  final String _apiKey;
-
   bool get hasKey => _apiKey.isNotEmpty;
+
+  void _requireApiKey() {
+    if (!hasKey) {
+      throw StateError('Gemini API key is not configured. AI features require an online connection.');
+    }
+  }
 
   /// Helper to extract clean JSON blocks from conversational text.
   String _extractJsonSubstring(String text) {
@@ -46,14 +55,11 @@ class GeminiService {
     required String language,
     String? subjectName,
   }) {
-    if (!hasKey) {
-      return _offlineExplainFallback(content, language, subjectName: subjectName);
-    }
+    _requireApiKey();
 
-    final langInstruction = _langInstruction(language);
     final prompt = '''
 You are Temari, an expert academic tutor for Ethiopian university students.
-$langInstruction
+$_explanationLangInstruction
 
 Subject context: ${subjectName ?? 'General'}
 
@@ -64,7 +70,7 @@ Write in flowing paragraphs. No markdown symbols like ** or ##. No bullet points
 Content to explain:
 $content
 ''';
-    return _streamFromPrompt(prompt).handleError((_) => _offlineExplainFallback(content, language, subjectName: subjectName));
+    return _streamFromPrompt(prompt);
   }
 
   Stream<String> explainImage({
@@ -74,16 +80,8 @@ $content
     String? subjectName,
     String? fileName,
   }) {
-    if (!hasKey) {
-      return _offlineExplainFallback(
-        'Exemplary photo note containing diagrams and key formulas.', 
-        language,
-        subjectName: subjectName,
-        fileName: fileName,
-      );
-    }
+    _requireApiKey();
 
-    final langInstruction = _langInstruction(language);
     final base64Image = base64Encode(imageBytes);
     final body = {
       'contents': [
@@ -95,7 +93,7 @@ $content
             {
               'text': '''
 You are Temari, an expert academic tutor for Ethiopian university students.
-$langInstruction
+$_explanationLangInstruction
 
 Carefully examine this image. It contains study material — textbook pages, notes, diagrams, or formulas.
 Explain everything you see: define terms, break down formulas, describe diagrams.
@@ -108,12 +106,7 @@ Subject context: ${subjectName ?? 'General'}
       ],
       'generationConfig': {'temperature': 0.35},
     };
-    return _streamFromBody(body).handleError((_) => _offlineExplainFallback(
-      'Visual note containing high-value formulas and structural definitions.', 
-      language,
-      subjectName: subjectName,
-      fileName: fileName,
-    ));
+    return _streamFromBody(body);
   }
 
   Stream<String> explainPdf({
@@ -122,16 +115,8 @@ Subject context: ${subjectName ?? 'General'}
     String? subjectName,
     String? fileName,
   }) {
-    if (!hasKey) {
-      return _offlineExplainFallback(
-        'PDF document summarizing core lecture concepts.', 
-        language,
-        subjectName: subjectName,
-        fileName: fileName,
-      );
-    }
+    _requireApiKey();
 
-    final langInstruction = _langInstruction(language);
     final base64Pdf = base64Encode(pdfBytes);
     final body = {
       'contents': [
@@ -146,7 +131,7 @@ Subject context: ${subjectName ?? 'General'}
             {
               'text': '''
 You are Temari, an expert academic tutor for Ethiopian university students.
-$langInstruction
+$_explanationLangInstruction
 
 Read this PDF document carefully and explain its core content to a university student.
 Cover: main concepts, key definitions, important theories, and practical applications.
@@ -159,12 +144,7 @@ Subject context: ${subjectName ?? 'General'}
       ],
       'generationConfig': {'temperature': 0.35},
     };
-    return _streamFromBody(body).handleError((_) => _offlineExplainFallback(
-      'PDF document summarizing core lecture concepts.', 
-      language,
-      subjectName: subjectName,
-      fileName: fileName,
-    ));
+    return _streamFromBody(body);
   }
 
   Future<List<Map<String, String>>> generateFlashcards({
@@ -172,9 +152,7 @@ Subject context: ${subjectName ?? 'General'}
     required String language,
     int count = 6,
   }) async {
-    if (!hasKey) {
-      return _offlineFlashcardsFallback(content, count);
-    }
+    _requireApiKey();
 
     final langInstruction = _langInstruction(language);
     final prompt = '''
@@ -182,81 +160,103 @@ You are Temari, an exam preparation AI.
 $langInstruction
 
 Based on this content, generate exactly $count high-quality flashcards for exam preparation.
-Rules: questions must be specific and testable, answers 1-3 sentences, cover key facts/definitions/processes/theories, no repeated topics.
+Rules: questions must be specific and testable, answers 1-3 sentences, cover key facts/definitions/processes/theories, no repeated topics. Make sure the question and answer text values are written entirely in the requested language.
 
 Return ONLY a JSON array. No preamble, no markdown, no backticks.
-Format: [{"q": "question here", "a": "answer here"}]
+Format: [{"q": "question in the chosen language", "a": "answer in the chosen language"}]
 
 Content:
 $content
 ''';
 
-    try {
-      final response = await _singleResponse(prompt);
-      final cleaned = _extractJsonSubstring(response);
-      final decoded = jsonDecode(cleaned) as List<dynamic>;
-      return decoded.map<Map<String, String>>((item) {
-        final m = item as Map<String, dynamic>;
-        return {
-          'question': (m['q'] ?? m['question'] ?? '') as String,
-          'answer': (m['a'] ?? m['answer'] ?? '') as String,
-        };
-      }).toList();
-    } catch (_) {
-      return _offlineFlashcardsFallback(content, count);
-    }
+    final response = await _singleResponse(prompt);
+    final cleaned = _extractJsonSubstring(response);
+    final decoded = jsonDecode(cleaned) as List<dynamic>;
+    return decoded.map<Map<String, String>>((item) {
+      final m = item as Map<String, dynamic>;
+      return {
+        'question': (m['q'] ?? m['question'] ?? '') as String,
+        'answer': (m['a'] ?? m['answer'] ?? '') as String,
+      };
+    }).toList();
   }
 
   Future<List<String>> predictExamQuestions({
     required String content,
     required String language,
   }) async {
-    if (!hasKey) {
-      return _offlineQuestionsFallback(content);
-    }
+    _requireApiKey();
 
     final langInstruction = _langInstruction(language);
     final prompt = '''
 You are Temari. Given this study content, predict 5 exam questions a university professor would likely ask.
 $langInstruction
+Make sure the predicted questions are written entirely in the requested language.
 Return ONLY a JSON array of strings. No other text.
 
 Content:
 $content
 ''';
 
-    try {
-      final response = await _singleResponse(prompt);
-      final cleaned = _extractJsonSubstring(response);
-      final decoded = jsonDecode(cleaned) as List<dynamic>;
-      return decoded.map<String>((e) => e.toString()).toList();
-    } catch (_) {
-      return _offlineQuestionsFallback(content);
-    }
+    final response = await _singleResponse(prompt);
+    final cleaned = _extractJsonSubstring(response);
+    final decoded = jsonDecode(cleaned) as List<dynamic>;
+    return decoded.map<String>((e) => e.toString()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> generateQuiz({
+    required String content,
+    required String language,
+  }) async {
+    _requireApiKey();
+
+    final langInstruction = _langInstruction(language);
+    final prompt = '''
+You are Temari. Based on the following study content, generate exactly 5 multiple choice questions for a quiz.
+$langInstruction
+Ensure the questions and options are written entirely in the requested language.
+
+Return ONLY a JSON array. No preamble, no markdown, no backticks.
+Format:
+[
+  {
+    "question": "Question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0
+  }
+]
+
+Content:
+$content
+''';
+
+    final response = await _singleResponse(prompt);
+    final cleaned = _extractJsonSubstring(response);
+    final decoded = jsonDecode(cleaned) as List<dynamic>;
+    return decoded.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<Map<String, dynamic>> generateMindMap({
     required String content,
     String language = 'en',
   }) async {
-    if (!hasKey) {
-      return _offlineMindmapFallback(content);
-    }
+    _requireApiKey();
 
     final langInstruction = _langInstruction(language);
     final prompt = '''
 You are Temari. Generate a nested structure representing a conceptual mindmap based on this study content.
 $langInstruction
+Make sure all center, branch, and child text labels are written entirely in the requested language.
 
 Rules:
 Return ONLY a single JSON object. No preamble, no markdown.
 Format:
 {
-  "center": "Core subject (max 3 words)",
+  "center": "Core subject label in the chosen language",
   "branches": [
     {
-      "label": "Branch label",
-      "children": ["sub-topic 1", "sub-topic 2"]
+      "label": "Branch label in the chosen language",
+      "children": ["sub-topic 1 in the chosen language", "sub-topic 2 in the chosen language"]
     }
   ]
 }
@@ -265,13 +265,9 @@ Content:
 $content
 ''';
 
-    try {
-      final response = await _singleResponse(prompt);
-      final cleaned = _extractJsonSubstring(response);
-      return jsonDecode(cleaned) as Map<String, dynamic>;
-    } catch (_) {
-      return _offlineMindmapFallback(content);
-    }
+    final response = await _singleResponse(prompt);
+    final cleaned = _extractJsonSubstring(response);
+    return jsonDecode(cleaned) as Map<String, dynamic>;
   }
 
   Stream<String> generalChatStream({
@@ -279,9 +275,7 @@ $content
     required String userQuestion,
     required String language,
   }) {
-    if (!hasKey) {
-      return _offlineChatFallback(userQuestion, language);
-    }
+    _requireApiKey();
 
     final langInstruction = _langInstruction(language);
     final history = messageHistory
@@ -300,7 +294,7 @@ $userQuestion
 
 Answer the student's question clearly, helpfully, and with academic focus. Be concise and write in flowing paragraphs. No markdown.
 ''';
-    return _streamFromPrompt(prompt).handleError((_) => _offlineChatFallback(userQuestion, language));
+    return _streamFromPrompt(prompt);
   }
 
   Stream<String> chatAboutNote({
@@ -310,9 +304,7 @@ Answer the student's question clearly, helpfully, and with academic focus. Be co
     required String userQuestion,
     required String language,
   }) {
-    if (!hasKey) {
-      return _offlineChatFallback(userQuestion, language);
-    }
+    _requireApiKey();
 
     final langInstruction = _langInstruction(language);
     final history = messageHistory
@@ -338,8 +330,22 @@ $userQuestion
 Answer the student's question based on the study material above. Be clear, helpful, and concise.
 If the question is unrelated to the material, gently bring focus back.
 ''';
-    return _streamFromPrompt(prompt).handleError((_) => _offlineChatFallback(userQuestion, language));
+    return _streamFromPrompt(prompt);
   }
+
+  static const String _explanationLangInstruction = '''
+CRITICAL: You must provide your complete response in THREE languages in the following exact format:
+[ENGLISH]
+<Provide the full explanation in English here>
+
+[አማርኛ]
+<Provide the full explanation in Amharic (አማርኛ) here>
+
+[AFAAN OROMOO]
+<Provide the full explanation in Afaan Oromo here>
+
+Make sure all three language versions are complete, clear, and easy to understand for university students. Do not mix them in a single paragraph; write each section completely in its respective language. No markdown formatting symbols.
+''';
 
   String _langInstruction(String lang) {
     switch (lang) {
@@ -441,112 +447,6 @@ If the question is unrelated to the material, gently bring focus back.
     return _extractText(json) ?? '';
   }
 
-  // --- OFFLINE / RESILIENT FALLBACKS ---
-
-  Stream<String> _offlineExplainFallback(
-    String content,
-    String language, {
-    String? subjectName,
-    String? fileName,
-  }) async* {
-    final subName = subjectName ?? 'General Study';
-    final docTitle = fileName ?? 'Lecture Material';
-    
-    if (language == 'am') {
-      yield 'ዋናው ሀሳብ (Core Concept)\n';
-      yield 'የሰነድ ስም: $docTitle · የትምህርት መስክ: $subName\n';
-      yield 'በዚህ የጥናት ሰነድ ውስጥ የተካተቱ ዋና ዋና ነጥቦች እና ጠቃሚ ቀመሮች ተለይተዋል።\n\n';
-      yield 'ዝርዝር ማብራሪያ (Detailed Breakdown)\n';
-      yield 'ይህ ለ $subName የተዘጋጀው ሰነድ ለፈተና ዝግጅት እጅግ ጠቃሚ የሆኑ መሰረታዊ ፅንሰ ሀሳቦችን በግልፅ ያስረዳል። ተማሪዎች እነዚህን ነጥቦች በጥንቃቄ በማንበብ ግንዛቤያቸውን ማሳደግ ይችላሉ።\n\n';
-      yield 'ጠቃሚ ምሳሌዎች (Practical Examples)\n';
-      yield '1. ይህንን ፅንሰ ሀሳብ በዕለት ተዕለት ሕይወት ውስጥ በመጠቀም ግንዛቤን ማሳደግ።\n';
-      yield '2. በፈተናዎች ላይ የሚመጡ ጥያቄዎችን በምሳሌዎች ላይ በመመስረት በቀላሉ መመለስ።';
-    } else if (language == 'om') {
-      yield 'Yaada Keessoo (Core Concept)\n';
-      yield 'Maqaa Sanadaa: $docTitle · Gosoota Barnootaa: $subName\n';
-      yield 'Qabxiin ijoo fi formulaawwan barbaachisoon sanada kana keessatti adda baafamaniiru.\n\n';
-      yield 'Ibsa Gabaasaa (Detailed Breakdown)\n';
-      yield 'Barnoota $subName jalatti sanadni kun yaada bu\'uuraa barumsa kanaa kan ibsu yoo ta\'u, keessattuu qophii qormaataaf gargaara. Barattoonni yaada kana hubachuuf irra deddeebi\'anii dubbisuu qabu.\n\n';
-      yield 'Fakkeenya Hojiirra Oolmaa\n';
-      yield '1. Yaada kana barumsa biroo wajjin walitti hidhuun hubannoo fooyyessuu.\n';
-      yield '2. Gaaffilee qormaataa yeroo hunda dhufan salphaatti deebisuu.';
-    } else {
-      yield 'Core Concept:\n';
-      yield 'Document: $docTitle · Course: $subName\n';
-      yield 'This synthesized material contains essential textbook summaries, diagrams, and structural definitions.\n\n';
-      yield 'Detailed Breakdown:\n';
-      yield 'This document outlines critical concepts essential for your academic success in $subName. Understanding the foundational layers, logical definitions, and key variables will allow you to analyze problems critically.\n\n';
-      yield 'Practical Illustration:\n';
-      yield 'Relating these theoretical constructs from "$docTitle" to direct real-world scenarios simplifies complex structures and bridges the gap between memory and active application.';
-    }
-  }
-
-  Future<List<Map<String, String>>> _offlineFlashcardsFallback(String content, int count) async {
-    final list = <Map<String, String>>[];
-    final sentences = content.split(RegExp(r'(?<=[.!?])\s+')).where((s) => s.trim().length > 10).toList();
-    
-    for (var i = 0; i < count; i++) {
-      if (i < sentences.length) {
-        final sentence = sentences[i].trim();
-        list.add({
-          'question': 'Analyze the primary focus and academic significance of: "${sentence.substring(0, math.min(sentence.length, 50))}..."',
-          'answer': 'This highlights key structural definitions, serving as a pillar for theoretical models and practical applications.'
-        });
-      } else {
-        list.add({
-          'question': 'How does study review ${i + 1} aid analytical comprehension?',
-          'answer': 'Spaced repetition reinforces retention loops in the cognitive memory pathway, shifting learning from temporary storage to persistent mastery.'
-        });
-      }
-    }
-    return list;
-  }
-
-  Future<List<String>> _offlineQuestionsFallback(String content) async {
-    final sentences = content.split(RegExp(r'(?<=[.!?])\s+')).where((s) => s.trim().length > 10).toList();
-    final first = sentences.isNotEmpty ? sentences.first : 'this content';
-    return [
-      'What are the core arguments and foundational evidence proposed in "$first"?',
-      'How do the variables discussed relate directly to practical applications in the industry?',
-      'Can you outline the sequential steps required to implement these principles?',
-      'What are the common pitfalls or limitations identified by researchers in this area?',
-      'Synthesize the ultimate conclusion and discuss its broader academic impact.'
-    ];
-  }
-
-  Future<Map<String, dynamic>> _offlineMindmapFallback(String content) async {
-    final sentences = content.split(RegExp(r'(?<=[.!?])\s+')).where((s) => s.trim().length > 5).toList();
-    final center = sentences.isNotEmpty ? sentences.first : 'Core Subject';
-    final shortCenter = center.split(' ').take(3).join(' ');
-    
-    return {
-      'center': shortCenter.isEmpty ? 'Main Concept' : shortCenter,
-      'branches': [
-        {
-          'label': 'Foundations',
-          'children': ['Definitions', 'Key Parameters', 'Historical Context']
-        },
-        {
-          'label': 'Methodology',
-          'children': ['Sequential Steps', 'Active Workflows', 'Techniques']
-        },
-        {
-          'label': 'Applications',
-          'children': ['Industrial Cases', 'Simulated Exercises', 'Future Scope']
-        }
-      ]
-    };
-  }
-
-  Stream<String> _offlineChatFallback(String question, String language) async* {
-    if (language == 'am') {
-      yield 'እባክዎ የበይነመረብ ግንኙነትዎን ያረጋግጡ። ተማሪ ቴማሪ ከመስመር ውጭ በሆነ መልኩም ቢሆን ትምህርታዊ እገዛዎን ለመስጠት ዝግጁ ነች። \n\nለጥያቄዎ: "$question" ተዛማጅ መልስ በቅርቡ እናቀርባለን።';
-    } else if (language == 'om') {
-      yield 'Mee qunnamtii interneetii keessan mirkaneessaa. Temariin offline ta\'us isin gargaaruuf qophiidha. \n\nGaaffii keessaniif: "$question" dhiyeenyatti deebii ni kennina.';
-    } else {
-      yield 'Please check your internet connection. Temari remains available offline to help you study.\n\nRegarding your question: "$question", try reviewing the summarized explanation notes above or check your API key environment configuration.';
-    }
-  }
 }
 
 class GeminiException implements Exception {
