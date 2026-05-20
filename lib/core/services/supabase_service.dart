@@ -87,7 +87,7 @@ class SupabaseService {
       final remote = Note.fromJson(Map<String, dynamic>.from(row as Map));
       final local = _hive.getNote(remote.id);
       if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
-        await _hive.upsertNote(remote);
+        await _hive.upsertNote(remote, touchUpdatedAt: false);
       }
     }
 
@@ -124,19 +124,13 @@ class SupabaseService {
     final c = _client;
     final uid = c?.auth.currentUser?.id;
     if (c == null || uid == null) return;
-    await c.from('notes').upsert({
-      'id': n.id,
-      'user_id': uid,
-      'subject_id': n.subjectId,
-      'title': n.title,
-      'content': n.content,
-      'type': n.type,
-      'file_url': n.fileUrl,
-      'ai_summary': n.aiSummary,
-      'ai_explanation': n.aiExplanation,
-      'language': n.language,
-      'created_at': n.createdAt.toIso8601String(),
-    });
+    try {
+      final payload = n.toJson();
+      payload['user_id'] = uid;
+      await c.from('notes').upsert(payload);
+    } catch (_) {
+      // Keep the local save intact when cloud sync is unavailable.
+    }
   }
 
   Future<void> pushUpsertFlashcard(Flashcard f) async {
