@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/bootstrap_providers.dart';
-import '../../../core/services/supabase_service.dart';
 import '../../../shared/models/timer_session.dart';
 
 enum PomodoroMode { focus, shortBreak, longBreak }

@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,37 +25,49 @@ class PomodoroTimerScreen extends ConsumerWidget {
     final timerNotifier = ref.read(timerProvider.notifier);
     final subjects = ref.watch(subjectsProvider);
     final lang = ref.watch(languageProvider);
+    final displayName = ref.watch(settingsControllerProvider).displayName ?? 'Wada';
 
     final progress = timerState.secondsRemaining / timerState.durationSeconds;
-    final activeSubject = subjects.firstWhereOrNull((s) => s.id == timerState.selectedSubjectId);
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
+            // Custom Header matching HomeScreen style
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
                 children: [
-                  ScaleOnPress(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
+                  Text(
+                    lang == 'am' ? 'የጥናት ሰዓት' : (lang == 'om' ? 'Qo\'annoo sa\'aatii' : 'Focus Timer'),
+                    style: AppTextStyles.h2.copyWith(
+                      color: AppColors.accent,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Text(
-                    lang == 'am' ? 'የጥናት ሰዓት ቆጣሪ' : (lang == 'om' ? 'Qo\'annoo sa\'aatii' : 'Study Timer'),
-                    style: AppTextStyles.h1.copyWith(fontSize: 22),
+                  const Spacer(),
+                  ScaleOnPress(
+                    onTap: () => context.push('/settings'),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: AppColors.accentSoft,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'T',
+                        style: AppTextStyles.h3.copyWith(
+                          color: AppColors.accent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
