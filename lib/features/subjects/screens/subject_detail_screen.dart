@@ -11,6 +11,8 @@ import '../../../core/providers/core_providers.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
+import '../../../shared/models/subject.dart';
+import '../providers/subjects_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../home/widgets/recent_note_tile.dart';
 
@@ -37,6 +39,146 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
     }
     return AppColors.accent;
   }
+
+  static const List<String> _subjectEditHexes = [
+    '#5D4037', // Brown
+    '#2E6B9E', // Ocean blue
+    '#3A7D5C', // Forest green
+    '#7B4EA0', // Plum
+    '#B5860D', // Golden
+    '#2E7D8C', // Teal
+    '#C0392B', // Red
+  ];
+
+  void _showEditSubjectDialog(BuildContext context, Subject subject) {
+    final nameController = TextEditingController(text: subject.name);
+    String selectedHex = subject.colorHex;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Edit Subject Details',
+                    style: AppTextStyles.h2.copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      hintText: 'Subject Name',
+                      hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.inkLight),
+                      filled: true,
+                      fillColor: AppColors.bgSecondary,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
+                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Subject Theme Color',
+                    style: AppTextStyles.label.copyWith(color: AppColors.inkMid),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: List.generate(_subjectEditHexes.length, (i) {
+                      final hex = _subjectEditHexes[i];
+                      final color = _parseColor(hex);
+                      final isSelected = selectedHex.toUpperCase() == hex.toUpperCase();
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() {
+                            selectedHex = hex;
+                          });
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? AppColors.accent : Colors.transparent,
+                              width: 3.5,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 28),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TemariButton(
+                          label: 'Cancel',
+                          variant: TemariButtonVariant.secondary,
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TemariButton(
+                          label: 'Save',
+                          onPressed: () async {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) return;
+
+                            final updatedSubject = subject.copyWith(
+                              name: name,
+                              colorHex: selectedHex,
+                              updatedAt: DateTime.now().toUtc(),
+                            );
+                            
+                            await ref.read(subjectRepositoryProvider).save(updatedSubject);
+                            
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
 
   Future<void> _generateFlashcards(String combinedText, String lang) async {
     if (combinedText.trim().isEmpty) return;
@@ -108,145 +250,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
     }
   }
 
-  Future<void> _predictExamQuestions(String combinedText, String lang) async {
-    if (combinedText.trim().isEmpty) return;
 
-    setState(() {
-      _isGenerating = true;
-      _genStatus = 'Analyzing potential exam topics...';
-    });
-
-    try {
-      final gemini = ref.read(geminiServiceProvider);
-      final questions = await gemini.predictExamQuestions(
-        content: combinedText,
-        language: lang,
-      );
-
-      if (questions.isEmpty) {
-        throw Exception('Unable to generate predicted questions.');
-      }
-
-      HapticFeedback.mediumImpact();
-      
-      if (mounted) {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: AppColors.bgDark,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          builder: (context) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        const Icon(Icons.psychology_outlined, color: AppColors.accent, size: 24),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Predicted Exam Papers',
-                          style: AppTextStyles.h2.copyWith(color: Colors.white, fontSize: 18),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'AI analyzed your notes to predict questions highly likely to appear in university/high school exam templates.',
-                      style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
-                    ),
-                    const SizedBox(height: 20),
-                    Flexible(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: questions.length,
-                          separatorBuilder: (_, __) => Container(height: 1, color: Colors.white.withOpacity(0.08)),
-                          itemBuilder: (ctx, idx) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12.0),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${idx + 1}',
-                                      style: AppTextStyles.small.copyWith(
-                                        color: AppColors.accentGlow,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      questions[idx],
-                                      style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontSize: 13),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    TemariButton(
-                      label: 'Got it, let\'s study!',
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to predict: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-          _genStatus = null;
-        });
-      }
-    }
-  }
 
   void _showAddDialog() {
     HapticFeedback.mediumImpact();
@@ -301,7 +305,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                 const SizedBox(height: 12),
                 _buildActionTile(
                   icon: Icons.camera_alt_outlined,
-                  color: const Color(0xFFD4622A),
+                  color: AppColors.accent,
                   title: 'Snap Note Scan',
                   subtitle: 'OCR analyze blackboards or formulas.',
                   onTap: () {
@@ -374,7 +378,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
@@ -549,7 +553,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentGlow.withOpacity(0.3),
+                color: AppColors.accentGlow.withValues(alpha: 0.3),
                 blurRadius: 16,
                 spreadRadius: 2,
                 offset: const Offset(0, 4),
@@ -601,91 +605,132 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 10),
+                      ScaleOnPress(
+                        onTap: () => _showEditSubjectDialog(context, subject),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Icon(Icons.edit_rounded, size: 16, color: AppColors.inkMid),
+                        ),
+                      ),
                     ],
                   ),
                 ),
 
-                // AI Study Assistant actions box (visible if notes exist)
+                // Sleek AI Study Tools Toolbar
                 if (notes.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.auto_awesome, color: AppColors.accent, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                'AI STUDY ASSISTANT',
-                                style: AppTextStyles.label.copyWith(color: AppColors.accent),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ScaleOnPress(
+                            onTap: () => context.push('/chat-session?subjectId=${subject.id}'),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Synthesize all subject notes to auto-generate interactive study aids.',
-                            style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ScaleOnPress(
-                                  onTap: () => _generateFlashcards(combinedNotesText, lang),
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentSoft,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: AppColors.accent.withOpacity(0.3)),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Generate Flashcards',
-                                      style: AppTextStyles.small.copyWith(
-                                        color: AppColors.accent,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.accent, size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'AI Tutor Chat',
+                                        style: AppTextStyles.small.copyWith(
+                                          color: AppColors.ink,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: ScaleOnPress(
-                                  onTap: () => _predictExamQuestions(combinedNotesText, lang),
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.bgSecondary,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: AppColors.border),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Predict Exams',
-                                      style: AppTextStyles.small.copyWith(
-                                        color: AppColors.inkMid,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ScaleOnPress(
+                            onTap: () => context.push('/quiz-session?subjectId=${subject.id}'),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.quiz_outlined, color: AppColors.accent, size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Practice Quiz',
+                                        style: AppTextStyles.small.copyWith(
+                                          color: AppColors.ink,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ScaleOnPress(
+                            onTap: () => _generateFlashcards(combinedNotesText, lang),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.psychology_outlined, color: AppColors.accent, size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Gen Cards',
+                                        style: AppTextStyles.small.copyWith(
+                                          color: AppColors.ink,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -867,7 +912,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
           if (_isGenerating)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 child: Center(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 32),
@@ -1022,7 +1067,7 @@ class _FlashcardRowState extends State<_FlashcardRow> {
                   child: Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 12,
-                    color: AppColors.inkLight.withOpacity(0.7),
+                    color: AppColors.inkLight.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -1066,3 +1111,5 @@ class _FlashcardRowState extends State<_FlashcardRow> {
     );
   }
 }
+
+

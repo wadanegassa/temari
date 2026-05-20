@@ -90,7 +90,7 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
                 colorHex: hex,
               );
               await ref.read(subjectRepositoryProvider).save(s);
-              if (!mounted) return;
+              if (!context.mounted) return;
               context.pop();
             },
           ),
