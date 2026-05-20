@@ -105,7 +105,7 @@ class _ProPaywallSheetState extends ConsumerState<ProPaywallSheet> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -201,7 +201,7 @@ class _ProPaywallSheetState extends ConsumerState<ProPaywallSheet> {
                 child: Text(
                   'Restore Purchases',
                   style: AppTextStyles.small.copyWith(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -210,7 +210,7 @@ class _ProPaywallSheetState extends ConsumerState<ProPaywallSheet> {
               Text(
                 'TOS & Privacy',
                 style: AppTextStyles.small.copyWith(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -242,7 +242,7 @@ class _FeatureRow extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: AppColors.accent, size: 20),
