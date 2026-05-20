@@ -7,7 +7,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
-import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
 import '../../../shared/widgets/pro_paywall_sheet.dart';
 import '../providers/settings_provider.dart';
@@ -99,6 +98,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showModelPicker() {
+    final currentModel = ref.read(settingsControllerProvider).aiModel;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Select AI Model', style: AppTextStyles.h2),
+                const SizedBox(height: 16),
+                _buildModelOption(
+                  title: 'Gemini 1.5 Flash',
+                  subtitle: 'Fast and efficient for everyday study.',
+                  modelId: 'gemini-1.5-flash',
+                  currentModel: currentModel,
+                ),
+                _buildModelOption(
+                  title: 'Gemini 1.5 Pro',
+                  subtitle: 'High quality reasoning for complex topics.',
+                  modelId: 'gemini-1.5-pro',
+                  currentModel: currentModel,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModelOption({
+    required String title,
+    required String subtitle,
+    required String modelId,
+    required String currentModel,
+  }) {
+    final isSelected = modelId == currentModel;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      title: Text(title, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: AppTextStyles.small.copyWith(color: AppColors.inkLight)),
+      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.accent) : null,
+      onTap: () {
+        ref.read(settingsControllerProvider).setAiModel(modelId);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
@@ -112,31 +178,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           children: [
             // Custom Header (No AppBar default)
+            // Custom Header matching HomeScreen style
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
                 children: [
-                  ScaleOnPress(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
                   Text(
                     AppStrings.get('settings', lang),
-                    style: AppTextStyles.h1.copyWith(fontSize: 22),
+                    style: AppTextStyles.h2.copyWith(
+                      color: AppColors.accent,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accentSoft,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      (settings.displayName ?? 'Wada').isNotEmpty
+                          ? (settings.displayName ?? 'Wada').substring(0, 1).toUpperCase()
+                          : 'T',
+                      style: AppTextStyles.h3.copyWith(
+                        color: AppColors.accent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 12),
 
             // Settings list content
             Expanded(
@@ -282,6 +361,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           },
                         ),
                         const _Divider(),
+                        _SettingsActionRow(
+                          title: 'AI Model Selection',
+                          value: settings.aiModel == 'gemini-1.5-pro' ? 'Gemini 1.5 Pro' : 'Gemini 1.5 Flash',
+                          onTap: _showModelPicker,
+                        ),
+                        const _Divider(),
                         _SettingsSwitchRow(
                           title: AppStrings.get('daily_reminder', lang),
                           value: settings.dailyReminder,
@@ -378,7 +463,7 @@ class _SettingsSwitchRow extends StatelessWidget {
           ),
           Switch.adaptive(
             value: value,
-            activeTrackColor: AppColors.accent.withOpacity(0.5),
+            activeTrackColor: AppColors.accent.withValues(alpha: 0.5),
             onChanged: onChanged,
           ),
         ],
