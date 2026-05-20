@@ -105,7 +105,10 @@ class HiveService {
     return Note.fromJson(_castMap(raw));
   }
 
-  Future<void> upsertNote(Note n) async {
+  Future<void> upsertNote(Note n, {bool touchUpdatedAt = true}) async {
+    if (touchUpdatedAt) {
+      n.updatedAt = DateTime.now().toUtc();
+    }
     await _notes?.put(n.id, n.toJson());
   }
 
