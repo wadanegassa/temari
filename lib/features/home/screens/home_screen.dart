@@ -25,6 +25,99 @@ class HomeScreen extends ConsumerWidget {
     return AppStrings.get('home_greeting_evening', lang);
   }
 
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '').trim();
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return AppColors.accent;
+    }
+  }
+
+  void _selectSubjectAndNavigate(BuildContext context, WidgetRef ref, String title, Function(String subjectId) onSelected) {
+    final subjects = ref.read(subjectsProvider);
+    if (subjects.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Subjects Found'),
+          content: const Text('Create a subject first to keep your notes and materials organized.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.push('/subjects/new');
+              },
+              child: const Text('Create Subject'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: AppTextStyles.h2.copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: subjects.length,
+                    itemBuilder: (context, index) {
+                      final s = subjects[index];
+                      final color = _parseColor(s.colorHex);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: color.withValues(alpha: 0.15),
+                          child: Icon(Icons.book, color: color),
+                        ),
+                        title: Text(s.name, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          onSelected(s.id);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(hiveTickProvider);
@@ -185,24 +278,44 @@ class HomeScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _QuickActionTile(
-                          icon: Icons.mic_none_outlined,
-                          label: AppStrings.get('quick_add_voice', lang),
-                          onTap: () => context.push('/note/voice'),
+                          icon: Icons.edit_note_outlined,
+                          label: AppStrings.get('quick_add_unified', lang),
+                          onTap: () => _selectSubjectAndNavigate(
+                            context,
+                            ref,
+                            AppStrings.get('quick_add_unified', lang),
+                            (sid) => context.push('/note/voice?subjectId=$sid'),
+                          ),
                         ),
                         _QuickActionTile(
                           icon: Icons.photo_camera_outlined,
                           label: AppStrings.get('quick_add_photo', lang),
-                          onTap: () => context.push('/note/photo?immediate=true'),
+                          onTap: () => _selectSubjectAndNavigate(
+                            context,
+                            ref,
+                            AppStrings.get('quick_add_photo', lang),
+                            (sid) => context.push('/note/photo?subjectId=$sid&immediate=true'),
+                          ),
                         ),
                         _QuickActionTile(
                           icon: Icons.upload_file_outlined,
                           label: AppStrings.get('quick_add_file', lang),
-                          onTap: () => context.push('/note/pdf'),
+                          onTap: () => _selectSubjectAndNavigate(
+                            context,
+                            ref,
+                            AppStrings.get('quick_add_file', lang),
+                            (sid) => context.push('/note/pdf?subjectId=$sid'),
+                          ),
                         ),
                         _QuickActionTile(
-                          icon: Icons.edit_outlined,
-                          label: AppStrings.get('quick_add_text', lang),
-                          onTap: () => context.push('/note/text'),
+                          icon: Icons.quiz_outlined,
+                          label: AppStrings.get('quick_add_quizzes', lang),
+                          onTap: () => _selectSubjectAndNavigate(
+                            context,
+                            ref,
+                            AppStrings.get('quick_add_quizzes', lang),
+                            (sid) => context.push('/quiz-session?subjectId=$sid'),
+                          ),
                         ),
                       ],
                     ),

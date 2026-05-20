@@ -54,7 +54,7 @@ class _MainNavigationContainerState extends ConsumerState<MainNavigationContaine
           border: const Border(top: BorderSide(color: AppColors.border, width: 1.0)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
@@ -69,14 +69,14 @@ class _MainNavigationContainerState extends ConsumerState<MainNavigationContaine
                 _NavBarItem(
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard_rounded,
-                  label: AppStrings.get('home', lang) ?? 'Home',
+                  label: AppStrings.get('home', lang),
                   isActive: _currentIndex == 0,
                   onTap: () => _onTabTapped(0),
                 ),
                 _NavBarItem(
                   icon: Icons.book_outlined,
                   activeIcon: Icons.book_rounded,
-                  label: AppStrings.get('subjects', lang) ?? 'Subjects',
+                  label: AppStrings.get('subjects', lang),
                   isActive: _currentIndex == 1,
                   onTap: () => _onTabTapped(1),
                 ),
@@ -88,14 +88,14 @@ class _MainNavigationContainerState extends ConsumerState<MainNavigationContaine
                 _NavBarItem(
                   icon: Icons.timer_outlined,
                   activeIcon: Icons.timer_rounded,
-                  label: AppStrings.get('timer', lang) ?? 'Timer',
+                  label: AppStrings.get('timer', lang),
                   isActive: _currentIndex == 3,
                   onTap: () => _onTabTapped(3),
                 ),
                 _NavBarItem(
                   icon: Icons.settings_outlined,
                   activeIcon: Icons.settings_rounded,
-                  label: AppStrings.get('settings', lang) ?? 'Settings',
+                  label: AppStrings.get('settings', lang),
                   isActive: _currentIndex == 4,
                   onTap: () => _onTabTapped(4),
                 ),
@@ -191,14 +191,14 @@ class _ChatBotNavBarItem extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: isActive ? [
                 BoxShadow(
-                  color: AppColors.accent.withOpacity(0.3),
+                  color: AppColors.accent.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
               ] : null,
             ),
             child: Icon(
-              Icons.auto_awesome,
+              Icons.smart_toy_rounded,
               color: isActive ? Colors.white : AppColors.accent,
               size: 20,
             ),
