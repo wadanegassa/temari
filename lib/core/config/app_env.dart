@@ -3,14 +3,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Loads API keys from [assets/dotenv], then merges a root `.env` file when
-/// present (desktop / `flutter run` from project root). Falls back to
-/// `--dart-define=KEY=value` for CI and release builds.
+/// Loads default values from [assets/dotenv] as a template, then merges a
+/// root `.env` file when present (desktop / `flutter run` from project root).
+/// Falls back to `--dart-define=KEY=value` for CI and release builds.
 class AppEnv {
   AppEnv._();
 
   static Future<void> init() async {
     await dotenv.load(fileName: 'assets/dotenv', isOptional: true);
+    await dotenv.load(fileName: '.env', mergeWith: dotenv.env, isOptional: true);
     if (!kIsWeb) {
       await _mergeRootDotEnv();
     }
@@ -45,6 +46,12 @@ class AppEnv {
     final v = dotenv.env['GEMINI_API_KEY']?.trim();
     if (v != null && v.isNotEmpty) return v;
     return const String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+  }
+
+  static String get geminiModel {
+    final v = dotenv.env['GEMINI_MODEL']?.trim();
+    if (v != null && v.isNotEmpty) return v;
+    return const String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-2.5-flash');
   }
 
   static String get supabaseUrl {
