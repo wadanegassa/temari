@@ -5,8 +5,11 @@ import '../services/connectivity_service.dart';
 import '../services/file_service.dart';
 import '../services/gemini_service.dart';
 
+import '../../features/settings/providers/settings_provider.dart';
+
 final geminiServiceProvider = Provider<GeminiService>((ref) {
-  return GeminiService();
+  final model = ref.watch(settingsControllerProvider).aiModel;
+  return GeminiService(model: model);
 });
 
 final connectivityServiceProvider =
