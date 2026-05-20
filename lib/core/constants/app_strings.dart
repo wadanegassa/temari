@@ -45,6 +45,16 @@ class AppStrings {
       kLangAmharic: 'ማስታወሻ ጻፍ',
       kLangOromo: 'Barreessi',
     },
+    'quick_add_unified': {
+      kLangEnglish: 'Add note',
+      kLangAmharic: 'ማስታወሻ ጨምር',
+      kLangOromo: 'Yaada dabali',
+    },
+    'quick_add_quizzes': {
+      kLangEnglish: 'Quizzes',
+      kLangAmharic: 'ፈተናዎች',
+      kLangOromo: 'Gaaffilee',
+    },
     'your_subjects': {
       kLangEnglish: 'Your subjects',
       kLangAmharic: 'የእርስዎ ትምህርቶች',
@@ -122,9 +132,9 @@ class AppStrings {
     },
     'offline_ai_pending': {
       kLangEnglish:
-          'You are offline. AI will run when you are back online.',
-      kLangAmharic: 'ከመስመር ውጭ ነዎት። AI ሲመለስ ይሰራል።',
-      kLangOromo: 'Ala sararaa jirtu. Yeroo deebitee AI hojjata.',
+          'AI features require an internet connection.',
+      kLangAmharic: 'የAI ባህሪዎች የበይነመረብ ግንኙነት ያስፈልጋቸዋል።',
+      kLangOromo: 'Tajaajilawwan AI qunnamtii interneetii barbaadu.',
     },
     'onboarding_1_title': {
       kLangEnglish: 'Your study companion',
@@ -148,9 +158,9 @@ class AppStrings {
       kLangOromo: 'Afaan Oromoo, Amaaraa ykn Ingiliffaa.',
     },
     'onboarding_3_title': {
-      kLangEnglish: 'Offline, always ready',
-      kLangAmharic: 'ከመስመር ውጭ፣ ሁልጊዜ ዝግጁ',
-      kLangOromo: 'Ala sararaa, yeroo hunda diyaara',
+      kLangEnglish: 'AI when you are online',
+      kLangAmharic: 'በመስመር ላይ ሲሆኑ AI',
+      kLangOromo: 'Yeroo sarararra jirta AI',
     },
     'onboarding_3_body': {
       kLangEnglish: 'Your notes stay on your phone first, then sync when you sign in.',
