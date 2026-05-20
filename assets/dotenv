@@ -1,6 +1,8 @@
-# Temari — default env (safe to commit). Override with a root `.env` (gitignored)
-# or pass --dart-define=KEY=value.
+# Temari runtime config template.
+# Put secrets in a gitignored root `.env` for desktop/dev, or pass them via
+# `--dart-define=KEY=value` at build time for mobile/CI builds.
 
 GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
