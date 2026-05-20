@@ -49,23 +49,31 @@ class AuthController extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> signIn(String email, String password) async {
-    await _sb.signIn(email: email, password: password);
-    anonymous = false;
-    await _hive.patchSettings({'anonymous': false});
+  Future<Session?> signIn(String email, String password) async {
+    final response = await _sb.signIn(email: email, password: password);
+    session = response.session;
+    anonymous = session == null;
+    await _hive.patchSettings({'anonymous': anonymous});
     await _sb.pullRemoteIntoHive();
     notifyListeners();
+    return session;
   }
 
-  Future<void> signUp(String email, String password, String? name) async {
-    await _sb.signUp(email: email, password: password, displayName: name);
-    anonymous = false;
-    await _hive.patchSettings({'anonymous': false});
+  Future<Session?> signUp(String email, String password, String? name) async {
+    final response = await _sb.signUp(email: email, password: password, displayName: name);
+    session = response.session;
+    anonymous = session == null;
+    await _hive.patchSettings({'anonymous': anonymous});
+    if (session != null) {
+      await _sb.pullRemoteIntoHive();
+    }
     notifyListeners();
+    return session;
   }
 
   Future<void> signOut() async {
     await _sb.signOut();
+    session = null;
     anonymous = true;
     await _hive.patchSettings({'anonymous': true});
     notifyListeners();
