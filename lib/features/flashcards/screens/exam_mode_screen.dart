@@ -5,13 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../shared/models/exam_session.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../settings/providers/settings_provider.dart';
 import '../widgets/flashcard_widget.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
@@ -94,7 +92,6 @@ class _ExamModeScreenState extends ConsumerState<ExamModeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = ref.watch(languageProvider);
     final subject = ref.watch(hiveServiceProvider).subjects.firstWhere(
           (s) => s.id == widget.subjectId,
           orElse: () => throw Exception('Subject not found'),

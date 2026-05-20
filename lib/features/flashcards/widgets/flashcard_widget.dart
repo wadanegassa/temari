@@ -136,7 +136,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
       decoration: BoxDecoration(
         color: AppColors.accentSoft,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.5), width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -169,7 +169,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
           Text(
             'Tap again to see question',
             style: AppTextStyles.small.copyWith(
-              color: AppColors.accent.withOpacity(0.7),
+              color: AppColors.accent.withValues(alpha: 0.7),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
