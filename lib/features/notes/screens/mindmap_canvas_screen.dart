@@ -73,7 +73,7 @@ class _MindMapCanvasScreenState extends ConsumerState<MindMapCanvasScreen> {
         language: lang,
       );
 
-      if (data == null || data.isEmpty) {
+      if (data.isEmpty) {
         throw Exception('Failed to generate structural mind map JSON.');
       }
 
@@ -295,10 +295,15 @@ class _MindMapCanvasScreenState extends ConsumerState<MindMapCanvasScreen> {
 
                 // Determine angle vector based on branch index (top-left, top-right, bottom-left, bottom-right)
                 double angle;
-                if (i == 0) angle = -3 * math.pi / 4; // Top Left
-                else if (i == 1) angle = -math.pi / 4; // Top Right
-                else if (i == 2) angle = 3 * math.pi / 4; // Bottom Left
-                else angle = math.pi / 4; // Bottom Right
+                if (i == 0) {
+                  angle = -3 * math.pi / 4; // Top Left
+                } else if (i == 1) {
+                  angle = -math.pi / 4; // Top Right
+                } else if (i == 2) {
+                  angle = 3 * math.pi / 4; // Bottom Left
+                } else {
+                  angle = math.pi / 4; // Bottom Right
+                }
 
                 final branchDistance = 200.0;
                 final branchX = 500.0 + branchDistance * math.cos(angle);
@@ -354,9 +359,9 @@ class _MindMapCanvasScreenState extends ConsumerState<MindMapCanvasScreen> {
                           width: 110,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: branchColor.withOpacity(0.06),
+                            color: branchColor.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: branchColor.withOpacity(0.3), width: 1),
+                            border: Border.all(color: branchColor.withValues(alpha: 0.3), width: 1),
                           ),
                           alignment: Alignment.center,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -395,16 +400,19 @@ class MindmapLinesPainter extends CustomPainter {
 
     for (int i = 0; i < branchesCount; i++) {
       double angle;
-      if (i == 0) angle = -3 * math.pi / 4; // Top Left
-      else if (i == 1) angle = -math.pi / 4; // Top Right
-      else if (i == 2) angle = 3 * math.pi / 4; // Bottom Left
-      else angle = math.pi / 4; // Bottom Right
+      if (i == 0) {
+        angle = -3 * math.pi / 4; // Top Left
+      } else if (i == 1) {
+        angle = -math.pi / 4; // Top Right
+      } else if (i == 2) {
+        angle = 3 * math.pi / 4; // Bottom Left
+      } else {
+        angle = math.pi / 4; // Bottom Right
+      }
 
       final branchDistance = 200.0;
       final branchX = center.dx + branchDistance * math.cos(angle);
       final branchY = center.dy + branchDistance * math.sin(angle);
-      final branchPoint = Offset(branchX, branchY);
-
       final strokeColor = AppColors.subjectColors[i % AppColors.subjectColors.length];
 
       // Draw bezier line between core topic and branch node
@@ -420,7 +428,7 @@ class MindmapLinesPainter extends CustomPainter {
         );
 
       final paintLine = Paint()
-        ..color = strokeColor.withOpacity(0.35)
+        ..color = strokeColor.withValues(alpha: 0.35)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5;
 

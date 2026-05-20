@@ -1,11 +1,10 @@
 import 'dart:io';
-import 'dart:math' as math;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -132,7 +131,7 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _explain = 'AI Extraction failed. Check internet or settings. Offline mock file saved.';
+          _explain = 'AI extraction failed. Check your internet connection and try again.';
         });
       }
     } finally {
@@ -158,6 +157,31 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
       return;
     }
 
+    setState(() {
+      _busy = true;
+    });
+
+    String? localPath;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      localPath = '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${_name ?? "document.pdf"}';
+      final file = File(localPath);
+      await file.writeAsBytes(_bytes!);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save file locally: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      setState(() {
+        _busy = false;
+      });
+      return;
+    }
+
     final uid = ref.read(authControllerProvider).effectiveUserId;
     final lang = ref.read(languageProvider);
     
@@ -168,6 +192,7 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
       title: _name ?? 'PDF document note',
       content: 'PDF · ${_formatSize(_bytes!.length)}',
       language: lang,
+      localFilePath: localPath,
     );
     note.aiExplanation = _explain;
 
@@ -184,6 +209,9 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
     HapticFeedback.mediumImpact();
 
     if (mounted) {
+      setState(() {
+        _busy = false;
+      });
       context.pop();
     }
   }
@@ -313,7 +341,7 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                 width: 52,
                                 height: 52,
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity(0.1),
+                                  color: AppColors.error.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
@@ -500,7 +528,7 @@ class _ScannerSweepAnimationState extends State<_ScannerSweepAnimation>
                 color: AppColors.accent,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.accentGlow.withOpacity(0.8),
+                    color: AppColors.accentGlow.withValues(alpha: 0.8),
                     blurRadius: 12,
                     spreadRadius: 2,
                   )
@@ -519,7 +547,7 @@ class _DashedZonePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final dPaint = Paint()
-      ..color = AppColors.border.withOpacity(0.6)
+      ..color = AppColors.border.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 

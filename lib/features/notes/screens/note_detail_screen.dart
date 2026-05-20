@@ -1,20 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../../shared/models/note.dart';
 import '../../../shared/widgets/scale_on_press.dart';
-import '../../../shared/widgets/temari_button.dart';
-import '../../../shared/widgets/temari_text_field.dart';
 import '../../../shared/widgets/pro_paywall_sheet.dart';
+import '../../../shared/utils/device_save_helper.dart';
 import '../../settings/providers/settings_provider.dart';
 
 class NoteDetailScreen extends ConsumerStatefulWidget {
@@ -31,7 +30,6 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   String _displayLang = 'en';
   bool _isExplaining = false;
   bool _isGeneratingCards = false;
-  bool _isPredicting = false;
   bool _showRawContent = false;
 
   @override
@@ -82,7 +80,14 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
 
       ref.read(hiveTickProvider.notifier).state++;
     } catch (_) {
-      // safe recovery
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('AI explanation requires an internet connection.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } finally {
       setState(() => _isExplaining = false);
     }
@@ -140,49 +145,22 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         );
       }
     } catch (_) {
-      // safe fallback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Flashcard generation requires an internet connection.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } finally {
       setState(() => _isGeneratingCards = false);
     }
   }
 
-  Future<void> _loadPredictedQuestions() async {
-    final hive = ref.read(hiveServiceProvider);
-    final n = hive.getNote(widget.noteId);
-    if (n == null) return;
-
-    setState(() => _isPredicting = true);
-
-    try {
-      final lang = ref.read(languageProvider);
-      final gemini = ref.read(geminiServiceProvider);
-      final qs = await gemini.predictExamQuestions(
-        content: n.aiExplanation ?? n.content,
-        language: lang,
-      );
-
-      n.predictedQuestions = qs;
-      await hive.upsertNote(n);
-      ref.read(hiveTickProvider.notifier).state++;
-    } catch (_) {
-    } finally {
-      setState(() => _isPredicting = false);
-    }
-  }
-
-  void _openChatOverlay(Note note) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _NoteChatSheet(note: note, language: _displayLang),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.watch(hiveTickProvider);
-    final lang = ref.watch(languageProvider);
     final n = ref.watch(hiveServiceProvider).getNote(widget.noteId);
 
     if (n == null) {
@@ -248,6 +226,81 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
                 children: [
+                  if (n.type == noteTypeFile && n.localFilePath != null) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.accentSoft,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ScaleOnPress(
+                              onTap: () {
+                                context.push('/pdf-viewer?filePath=${Uri.encodeComponent(n.localFilePath!)}&title=${Uri.encodeComponent(n.title)}');
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.picture_as_pdf_rounded, color: AppColors.accent, size: 28),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Open PDF Document',
+                                            style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Tap to read the textbook PDF.',
+                                            style: AppTextStyles.small.copyWith(color: AppColors.accent.withValues(alpha: 0.7)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.save_alt_rounded, color: AppColors.accent),
+                            tooltip: 'Save PDF to Device',
+                            onPressed: () async {
+                              try {
+                                final file = File(n.localFilePath!);
+                                if (await file.exists()) {
+                                  final bytes = await file.readAsBytes();
+                                  if (context.mounted) {
+                                    await DeviceSaveHelper.saveBinaryFile(
+                                      context: context,
+                                      fileName: '${n.title.replaceAll(' ', '_')}.pdf',
+                                      bytes: bytes,
+                                      extension: 'pdf',
+                                    );
+                                  }
+                                } else {
+                                  throw Exception('File not found locally.');
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error saving PDF: $e'), backgroundColor: Colors.red),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Action pills row (Mind Map, Flashcards, Ask Temari)
                   Row(
                     children: [
@@ -270,7 +323,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                         child: _ActionPill(
                           label: 'Ask Temari 💬',
                           color: AppColors.inkMid,
-                          onTap: () => _openChatOverlay(n),
+                          onTap: () => context.push('/chat-session?noteId=${n.id}'),
                         ),
                       ),
                     ],
@@ -334,6 +387,21 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                               'AI Deep Explanation',
                               style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
                             ),
+                            const Spacer(),
+                            if (explanation.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.save_alt_rounded, color: AppColors.accent, size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Save Explanation to Device',
+                                onPressed: () {
+                                  DeviceSaveHelper.saveTextFile(
+                                    context: context,
+                                    fileName: 'temari_explanation_${n.title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.txt',
+                                    textContent: explanation,
+                                  );
+                                },
+                              ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -399,66 +467,58 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                   ],
                   const SizedBox(height: 28),
 
-                  // Predicted Exam Questions
+                  // Interactive Quiz Card
                   Row(
                     children: [
                       Text(
-                        'PREDICTED EXAM QUESTIONS',
+                        'PRACTICE QUIZ',
                         style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
                       ),
-                      const Spacer(),
-                      if (n.predictedQuestions == null && !_isPredicting)
-                        ScaleOnPress(
-                          onTap: _loadPredictedQuestions,
-                          child: Text(
-                            'Predict ✦',
-                            style: AppTextStyles.small.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700),
-                          ),
-                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_isPredicting)
-                    const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: AppColors.accent)))
-                  else if (n.predictedQuestions != null)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningSoft,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: n.predictedQuestions!
-                            .map(
-                              (q) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10.0),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning)),
-                                    Expanded(
-                                      child: Text(
-                                        q,
-                                        style: AppTextStyles.small.copyWith(color: AppColors.inkMid, fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Tap Predict to extract likely university exam questions.',
-                        style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentSoft,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Test your knowledge with an AI quiz! ✍️',
+                          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Generate multiple choice questions based on this study content. Retake or export them anytime.',
+                          style: AppTextStyles.small.copyWith(color: AppColors.inkMid),
+                        ),
+                        const SizedBox(height: 12),
+                        ScaleOnPress(
+                          onTap: () => context.push('/quiz-session?noteId=${n.id}&subjectId=${n.subjectId}'),
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Start Practice Quiz ✦',
+                              style: AppTextStyles.small.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -560,7 +620,6 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
     if (text.isEmpty || _isStreaming) return;
 
     // Free tier message limitation: Max 5 chat messages
-    final hive = ref.read(hiveServiceProvider);
     final settings = ref.read(settingsControllerProvider);
     if (!settings.isPro && _messages.where((m) => m['role'] == 'user').length >= 5) {
       Navigator.pop(context);
@@ -604,7 +663,7 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
     } catch (_) {
       final lastIndex = _messages.length - 1;
       setState(() {
-        _messages[lastIndex] = {'role': 'assistant', 'text': 'Sorry, I failed to get an answer. Please check your internet connection.'};
+        _messages[lastIndex] = {'role': 'assistant', 'text': 'I could not reach the AI service. Please check your internet connection.'};
       });
     } finally {
       setState(() => _isStreaming = false);

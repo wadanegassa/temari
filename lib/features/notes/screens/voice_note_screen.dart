@@ -35,7 +35,13 @@ class VoiceNoteScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(languageProvider);
     final isRecording = useState(false);
-    final transcription = useState('');
+    final titleController = useTextEditingController();
+    final bodyController = useTextEditingController();
+    
+    // Listen to changes in the editors to update state
+    useValueListenable(titleController);
+    useValueListenable(bodyController);
+    
     final explanation = useState('');
     final explaining = useState(false);
     
@@ -76,9 +82,13 @@ class VoiceNoteScreen extends HookConsumerWidget {
         isRecording.value = false;
         HapticFeedback.heavyImpact();
       } else {
-        transcription.value = '';
+        final initialText = bodyController.text;
         await voice.startListening((t) {
-          transcription.value = t;
+          // Append transcribed text cleanly at the end
+          bodyController.text = initialText.isEmpty ? t : '$initialText\n$t';
+          bodyController.selection = TextSelection.fromPosition(
+            TextPosition(offset: bodyController.text.length),
+          );
         });
         isRecording.value = true;
         HapticFeedback.mediumImpact();
@@ -86,7 +96,7 @@ class VoiceNoteScreen extends HookConsumerWidget {
     }
 
     Future<void> explain() async {
-      if (transcription.value.isEmpty) return;
+      if (bodyController.text.isEmpty) return;
 
       explaining.value = true;
       explanation.value = '';
@@ -98,7 +108,7 @@ class VoiceNoteScreen extends HookConsumerWidget {
         final subjectName = subject?.name;
 
         final stream = gemini.explainText(
-          content: transcription.value,
+          content: bodyController.text,
           language: lang,
           subjectName: subjectName,
         );
@@ -106,7 +116,14 @@ class VoiceNoteScreen extends HookConsumerWidget {
           explanation.value += chunk;
         }
       } catch (_) {
-        // recovery
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('AI explanation requires an internet connection.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       } finally {
         explaining.value = false;
       }
@@ -121,14 +138,28 @@ class VoiceNoteScreen extends HookConsumerWidget {
         return;
       }
 
+      final title = titleController.text.trim();
+      final body = bodyController.text.trim();
+
+      if (body.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Note content cannot be empty.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
       final uid = ref.read(authControllerProvider).effectiveUserId;
-      final title = transcription.value.split(' ').take(5).join(' ');
+      final finalTitle = title.isEmpty ? '${body.split(' ').take(5).join(' ')}...' : title;
+
       final n = Note.create(
         userId: uid,
         subjectId: sid,
-        type: noteTypeVoice,
-        title: title.isEmpty ? 'Voice Note' : title,
-        content: transcription.value,
+        type: noteTypeText, // Combined is saved as standard text note
+        title: finalTitle,
+        content: body,
         language: lang,
       );
       n.aiExplanation = explanation.value;
@@ -152,7 +183,7 @@ class VoiceNoteScreen extends HookConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
+            // Premium Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
@@ -172,7 +203,7 @@ class VoiceNoteScreen extends HookConsumerWidget {
                   ),
                   const SizedBox(width: 16),
                   Text(
-                    AppStrings.get('quick_add_voice', lang),
+                    'Unified Study Note 📝',
                     style: AppTextStyles.h1.copyWith(fontSize: 22),
                   ),
                 ],
@@ -184,121 +215,196 @@ class VoiceNoteScreen extends HookConsumerWidget {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 children: [
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   Text(
-                    'Record or upload audio lectures. Temari transcribes and explains core concepts instantly.',
+                    'Type your academic notes below, record active lectures, or mix both! Temari synthesizes and explains everything instantly.',
                     style: AppTextStyles.body.copyWith(color: AppColors.inkMid),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Animated audio waveform
-                  AnimatedBuilder(
-                    animation: waveAnimController,
-                    builder: (context, _) {
-                      return SizedBox(
-                        height: 100,
-                        child: CustomPaint(
-                          size: const Size(double.infinity, 100),
-                          painter: WaveformPainter(
-                            active: isRecording.value,
-                            animationValue: waveAnimController.value,
-                          ),
-                        ),
-                      );
-                    },
                   ),
                   const SizedBox(height: 24),
 
-                  // Capture Control Button
-                  Center(
-                    child: ScaleOnPress(
-                      onTap: toggleRecording,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 76,
-                        height: 76,
-                        decoration: BoxDecoration(
-                          color: isRecording.value ? AppColors.error : AppColors.accent,
-                          shape: BoxShape.circle,
-                          boxShadow: isRecording.value
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.error.withOpacity(0.35),
-                                    blurRadius: 18,
-                                    spreadRadius: 2,
-                                  )
-                                ]
-                              : [
-                                  BoxShadow(
-                                    color: AppColors.accent.withOpacity(0.2),
-                                    blurRadius: 12,
-                                    spreadRadius: 1,
-                                  )
-                                ],
+                  // Binder Card for Title and Description
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.border, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.ink.withValues(alpha: 0.02),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        )
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title Editor
+                        TextField(
+                          controller: titleController,
+                          style: AppTextStyles.h2.copyWith(fontSize: 18, color: AppColors.ink, fontWeight: FontWeight.w900),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Note Title (e.g. Chemical Bonds)...',
+                            hintStyle: TextStyle(color: AppColors.inkLight),
+                            isDense: true,
+                          ),
                         ),
-                        child: Icon(
-                          isRecording.value ? Icons.stop_rounded : Icons.mic_none_rounded,
-                          color: Colors.white,
-                          size: 32,
+                        const Divider(color: AppColors.border, height: 20, thickness: 1),
+                        // Body Editor
+                        TextField(
+                          controller: bodyController,
+                          maxLines: 10,
+                          minLines: 6,
+                          style: AppTextStyles.body.copyWith(color: AppColors.ink, height: 1.55, fontSize: 14.5),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Type your study notes here or start dictating below...',
+                            hintStyle: TextStyle(color: AppColors.inkLight),
+                            isDense: true,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 24),
 
-                  // Transcription Output
-                  if (transcription.value.isNotEmpty) ...[
-                    Text(
-                      'LIVE TRANSCRIPTION',
-                      style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
+                  // Audio Visualizer waveform (shown while recording)
+                  if (isRecording.value) ...[
+                    AnimatedBuilder(
+                      animation: waveAnimController,
+                      builder: (context, _) {
+                        return SizedBox(
+                          height: 70,
+                          child: CustomPaint(
+                            size: const Size(double.infinity, 70),
+                            painter: WaveformPainter(
+                              active: isRecording.value,
+                              animationValue: waveAnimController.value,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        transcription.value,
-                        style: AppTextStyles.body.copyWith(color: AppColors.ink, height: 1.5),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Dictation Control Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isRecording.value ? AppColors.error.withValues(alpha: 0.06) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isRecording.value ? AppColors.error.withValues(alpha: 0.2) : AppColors.border,
+                        width: 1.2,
                       ),
                     ),
+                    child: Row(
+                      children: [
+                        ScaleOnPress(
+                          onTap: toggleRecording,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: isRecording.value ? AppColors.error : AppColors.accent,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (isRecording.value ? AppColors.error : AppColors.accent)
+                                      .withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Icon(
+                              isRecording.value ? Icons.stop_rounded : Icons.mic_none_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isRecording.value ? 'RECORDING LECTURE...' : 'VOICE DICTATION',
+                                style: AppTextStyles.label.copyWith(
+                                  color: isRecording.value ? AppColors.error : AppColors.inkMid,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isRecording.value
+                                    ? 'Speaking... Temari is capturing text live.'
+                                    : 'Tap the microphone to speak your notes.',
+                                style: AppTextStyles.small.copyWith(
+                                  color: isRecording.value ? AppColors.error : AppColors.inkLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Actions row
+                  if (bodyController.text.isNotEmpty && explanation.value.isEmpty) ...[
+                    TemariButton(
+                      label: explaining.value ? 'Generating AI Explanations...' : AppStrings.get('explain_ai', lang),
+                      onPressed: explaining.value ? null : explain,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  if (explaining.value) ...[
+                    const LoadingShimmer(),
                     const SizedBox(height: 24),
-
-                    // Actions
-                    if (explanation.value.isEmpty)
-                      TemariButton(
-                        label: explaining.value ? 'Generating AI Explanations...' : AppStrings.get('explain_ai', lang),
-                        onPressed: explaining.value ? null : explain,
-                      ),
-                    if (explaining.value) ...[
-                      const SizedBox(height: 16),
-                      const LoadingShimmer(),
-                    ],
                   ],
 
                   // AI Explanation details
                   if (explanation.value.isNotEmpty) ...[
-                    Text(
-                      'AI SUMMARY',
-                      style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.success, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'AI TUTOR INSIGHTS',
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     Container(
                       decoration: BoxDecoration(
-                        color: AppColors.accentSoft,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                        color: AppColors.successSoft.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.2), width: 1.5),
                       ),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(18),
                       child: Text(
                         explanation.value,
-                        style: AppTextStyles.small.copyWith(color: AppColors.inkMid, height: 1.5),
+                        style: AppTextStyles.body.copyWith(color: AppColors.inkMid, height: 1.55, fontSize: 14.5),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Standard save button
+                  if (bodyController.text.isNotEmpty) ...[
                     TemariButton(
                       label: AppStrings.get('save', lang),
                       onPressed: saveNote,
@@ -323,11 +429,27 @@ class WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = active ? AppColors.error.withOpacity(0.4) : AppColors.accent.withOpacity(0.3)
+    final paintFore = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: active
+            ? [AppColors.error, AppColors.accentGlow]
+            : [AppColors.accent, AppColors.accentSoft],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;
 
-    const barsCount = 28;
+    final paintBack = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: active
+            ? [AppColors.error.withValues(alpha: 0.15), AppColors.accentGlow.withValues(alpha: 0.05)]
+            : [AppColors.accent.withValues(alpha: 0.15), AppColors.accentSoft.withValues(alpha: 0.05)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill;
+
+    const barsCount = 32;
     final widthFactor = size.width / barsCount;
 
     for (var i = 0; i < barsCount; i++) {
@@ -335,13 +457,26 @@ class WaveformPainter extends CustomPainter {
       double height;
 
       if (active) {
-        // Animate sin waves based on periodic time and index offsets
-        final angle = (animationValue * 2 * math.pi) + (i * 0.4);
-        height = 14 + 36 * (0.5 + 0.5 * math.sin(angle));
+        final angle = (animationValue * 2 * math.pi) + (i * 0.3);
+        height = 16 + 48 * (0.5 + 0.5 * math.sin(angle));
       } else {
-        height = 6.0 + 4.0 * math.sin(i * 0.2);
+        height = 8.0 + 6.0 * math.sin(i * 0.25);
       }
 
+      // Draw background wave
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(x, size.height / 2),
+            width: 6.0,
+            height: height + 6.0,
+          ),
+          const Radius.circular(3),
+        ),
+        paintBack,
+      );
+
+      // Draw foreground wave
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromCenter(
@@ -351,7 +486,7 @@ class WaveformPainter extends CustomPainter {
           ),
           const Radius.circular(2),
         ),
-        paint,
+        paintFore,
       );
     }
   }

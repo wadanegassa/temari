@@ -44,24 +44,39 @@ class _TextNoteScreenState extends ConsumerState<TextNoteScreen> {
   Future<void> runExplain() async {
     setState(() => _busy = true);
     _explain = '';
-    final gemini = ref.read(geminiServiceProvider);
-    final lang = ref.read(languageProvider);
 
-    final subs = ref.read(subjectsProvider);
-    final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
-    final subject = ref.read(hiveServiceProvider).getSubject(sid);
-    final subjectName = subject?.name;
+    try {
+      final gemini = ref.read(geminiServiceProvider);
+      final lang = ref.read(languageProvider);
 
-    final stream = gemini.explainText(
-      content: _text.text,
-      language: lang,
-      subjectName: subjectName,
-    );
-    await for (final c in stream) {
-      _explain += c;
-      setState(() {});
+      final subs = ref.read(subjectsProvider);
+      final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
+      final subject = ref.read(hiveServiceProvider).getSubject(sid);
+      final subjectName = subject?.name;
+
+      final stream = gemini.explainText(
+        content: _text.text,
+        language: lang,
+        subjectName: subjectName,
+      );
+      await for (final c in stream) {
+        _explain += c;
+        setState(() {});
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('AI explanation requires an internet connection.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
-    setState(() => _busy = false);
   }
 
   Future<void> _save() async {

@@ -142,7 +142,7 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _explain = 'AI Extraction failed. Check your internet connection or credentials. Offline notes saved.';
+          _explain = 'AI extraction failed. Check your internet connection and try again.';
         });
       }
     } finally {
@@ -514,7 +514,7 @@ class _ScannerAnimationState extends State<ScannerAnimation>
                 color: AppColors.accent,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.accentGlow.withOpacity(0.8),
+                    color: AppColors.accentGlow.withValues(alpha: 0.8),
                     blurRadius: 12,
                     spreadRadius: 2,
                   )
@@ -558,7 +558,7 @@ class _ViewfinderBorderPainter extends CustomPainter {
 
     // Dotted inner rectangle
     final dPaint = Paint()
-      ..color = AppColors.border.withOpacity(0.5)
+      ..color = AppColors.border.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
