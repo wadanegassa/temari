@@ -15,9 +15,9 @@ class AppColors {
   static const inkLight     = Color(0xFF9A948E); // tertiary / placeholder
 
   // Accent
-  static const accent       = Color(0xFFD4622A); // terracotta — primary CTA, highlights
-  static const accentSoft   = Color(0xFFFAEDE6); // accent bg tint
-  static const accentGlow   = Color(0xFFFF8A5C); // lighter accent for gradients
+  static const accent       = Color(0xFF5D4037); // rich espresso brown — primary CTA, highlights
+  static const accentSoft   = Color(0xFFEFEBE9); // soft coffee bg tint
+  static const accentGlow   = Color(0xFF8D6E63); // lighter warm brown for gradients
 
   // Semantic
   static const success      = Color(0xFF2A7A4B);
@@ -33,7 +33,7 @@ class AppColors {
 
   // Subject colors — warm, distinct, readable
   static const subjectColors = <Color>[
-    Color(0xFFD4622A), // terracotta
+    Color(0xFF5D4037), // brown
     Color(0xFF2E6B9E), // ocean blue
     Color(0xFF3A7D5C), // forest green
     Color(0xFF7B4EA0), // plum
