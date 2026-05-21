@@ -7,16 +7,13 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/providers/bootstrap_providers.dart';
 import '../../core/providers/core_providers.dart';
+import '../../core/services/gemini_service.dart';
 import '../../features/settings/providers/settings_provider.dart';
 import '../../shared/widgets/scale_on_press.dart';
 import '../utils/device_save_helper.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
-  const ChatbotScreen({
-    super.key,
-    this.subjectId,
-    this.noteId,
-  });
+  const ChatbotScreen({super.key, this.subjectId, this.noteId});
 
   final String? subjectId;
   final String? noteId;
@@ -90,7 +87,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       final historyList = _messages.sublist(0, _messages.length - 2);
 
       final stream = gemini.chatAboutNote(
-        noteContent: _contextText.isNotEmpty ? _contextText : 'General study query.',
+        noteContent: _contextText.isNotEmpty
+            ? _contextText
+            : 'General study query.',
         aiExplanation: 'You are helping the student study.',
         messageHistory: historyList,
         userQuestion: text,
@@ -104,20 +103,25 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         buffer.write(chunk);
         if (mounted) {
           setState(() {
-            _messages[lastIndex] = {'role': 'assistant', 'text': buffer.toString()};
+            _messages[lastIndex] = {
+              'role': 'assistant',
+              'text': buffer.toString(),
+            };
           });
           _scrollToBottom();
         }
       }
       HapticFeedback.lightImpact();
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         final lastIndex = _messages.length - 1;
+        String errMsg =
+            'Failed to reach AI service. Please check your internet connection.';
+        if (e is GeminiException) {
+          errMsg = 'AI Error: ${e.cleanMessage}';
+        }
         setState(() {
-          _messages[lastIndex] = {
-            'role': 'assistant',
-            'text': 'Failed to reach AI service. Please check your internet connection.'
-          };
+          _messages[lastIndex] = {'role': 'assistant', 'text': errMsg};
         });
       }
     } finally {
@@ -139,9 +143,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   void _saveChatLog() {
     if (_messages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No messages to save!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No messages to save!')));
       return;
     }
 
@@ -171,12 +175,13 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         scrolledUnderElevation: 0,
         leading: ScaleOnPress(
           onTap: () => context.pop(),
-          child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.ink, size: 18),
+          child: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.ink,
+            size: 18,
+          ),
         ),
-        title: Text(
-          _title,
-          style: AppTextStyles.h2.copyWith(fontSize: 16),
-        ),
+        title: Text(_title, style: AppTextStyles.h2.copyWith(fontSize: 16)),
         actions: [
           IconButton(
             icon: const Icon(Icons.save_alt_rounded, color: AppColors.accent),
@@ -216,7 +221,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Ask questions about your study content. Save the log to your device anytime.',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.inkLight),
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.inkLight,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -226,24 +233,38 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                 : ListView.builder(
                     controller: _scrollController,
                     itemCount: _messages.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemBuilder: (context, i) {
                       final m = _messages[i];
                       final isUser = m['role'] == 'user';
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: isUser ? AppColors.accent : Colors.white,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(16),
                               topRight: const Radius.circular(16),
-                              bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
-                              bottomRight: isUser ? Radius.zero : const Radius.circular(16),
+                              bottomLeft: isUser
+                                  ? const Radius.circular(16)
+                                  : Radius.zero,
+                              bottomRight: isUser
+                                  ? Radius.zero
+                                  : const Radius.circular(16),
                             ),
-                            border: isUser ? null : Border.all(color: AppColors.border),
+                            border: isUser
+                                ? null
+                                : Border.all(color: AppColors.border),
                           ),
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.78,
@@ -261,51 +282,64 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                     },
                   ),
           ),
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSecondary,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    child: TextField(
-                      controller: _chatInput,
-                      decoration: const InputDecoration(
-                        hintText: 'Type your question...',
-                        hintStyle: TextStyle(color: AppColors.inkLight, fontSize: 14),
-                        border: InputBorder.none,
-                        isDense: true,
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSecondary,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.border),
                       ),
-                      style: const TextStyle(color: AppColors.ink, fontSize: 14),
-                      onSubmitted: (_) => _sendMessage(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: TextField(
+                        controller: _chatInput,
+                        decoration: const InputDecoration(
+                          hintText: 'Type your question...',
+                          hintStyle: TextStyle(
+                            color: AppColors.inkLight,
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 14,
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                ScaleOnPress(
-                  onTap: _sendMessage,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
+                  const SizedBox(width: 10),
+                  ScaleOnPress(
+                    onTap: _sendMessage,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
-                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
