@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -122,6 +124,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
@@ -148,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Temari Account',
+                    AppStrings.get('account_temari', lang),
                     style: AppTextStyles.h2.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                 ],
@@ -172,16 +176,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Sign in to continue',
+                      AppStrings.get('sign_in_continue', lang),
                       style: AppTextStyles.h1.copyWith(fontSize: 28),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'If your email is new, Temari will create the account automatically after the first sign-in attempt.',
+                      AppStrings.get('auth_helper_text', lang),
                       style: AppTextStyles.body.copyWith(color: AppColors.inkMid),
                     ),
                     const SizedBox(height: 16),
                     _GoogleAuthButton(
+                      label: AppStrings.get('continue_google', lang),
                       onPressed: null,
                     ),
                     const SizedBox(height: 20),
@@ -210,7 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           _AuthField(
                             controller: _emailController,
-                            label: 'Email address',
+                            label: AppStrings.get('email_address', lang),
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -219,7 +224,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(height: 12),
                           _AuthField(
                             controller: _passwordController,
-                            label: 'Password',
+                            label: AppStrings.get('password', lang),
                             icon: Icons.lock_outline_rounded,
                             obscureText: true,
                             textInputAction: TextInputAction.done,
@@ -232,7 +237,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(height: 20),
                           TemariButton(
-                            label: _isBusy ? 'Please wait...' : 'Sign in',
+                            label: _isBusy ? AppStrings.get('please_wait', lang) : AppStrings.get('sign_in', lang),
                             onPressed: _isBusy ? null : _submit,
                           ),
                         ],
@@ -294,14 +299,15 @@ class _AuthField extends StatelessWidget {
 }
 
 class _GoogleAuthButton extends StatelessWidget {
-  const _GoogleAuthButton({required this.onPressed});
+  const _GoogleAuthButton({required this.label, required this.onPressed});
 
+  final String label;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return TemariButton(
-      label: 'Continue with Google',
+      label: label,
       variant: TemariButtonVariant.secondary,
       onPressed: onPressed,
     );
