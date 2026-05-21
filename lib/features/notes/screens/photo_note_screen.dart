@@ -22,7 +22,11 @@ import '../../settings/providers/settings_provider.dart';
 import '../../subjects/providers/subjects_provider.dart';
 
 class PhotoNoteScreen extends ConsumerStatefulWidget {
-  const PhotoNoteScreen({super.key, this.subjectId, this.immediateCapture = false});
+  const PhotoNoteScreen({
+    super.key,
+    this.subjectId,
+    this.immediateCapture = false,
+  });
 
   final String? subjectId;
   final bool immediateCapture;
@@ -52,7 +56,9 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
 
     // Multimodal Pro cap checking (limit 5 for free accounts)
     final multiCount = hive.notes
-        .where((n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file')
+        .where(
+          (n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file',
+        )
         .length;
 
     if (!settings.isPro && multiCount >= 5) {
@@ -106,7 +112,7 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
   Future<void> _process() async {
     final f = _file;
     if (f == null) return;
-    
+
     setState(() {
       _busy = true;
       _explain = '';
@@ -116,7 +122,7 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
       final bytes = await f.readAsBytes();
       final gemini = ref.read(geminiServiceProvider);
       final lang = ref.read(languageProvider);
-      
+
       final subs = ref.read(subjectsProvider);
       final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
       final subject = ref.read(hiveServiceProvider).getSubject(sid);
@@ -142,7 +148,8 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _explain = 'AI extraction failed. Check your internet connection and try again.';
+          _explain =
+              'AI extraction failed. Check your internet connection and try again.';
         });
       }
     } finally {
@@ -157,7 +164,7 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
   Future<void> _save() async {
     final subs = ref.read(subjectsProvider);
     final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
-    
+
     if (sid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -170,7 +177,13 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
 
     final uid = ref.read(authControllerProvider).effectiveUserId;
     final lang = ref.read(languageProvider);
-    
+
+    final gemini = ref.read(geminiServiceProvider);
+    final parsed = gemini.normalizeExplanationByLanguage(
+      text: _explain,
+      requestedLanguage: lang,
+    );
+
     final note = Note.create(
       userId: uid,
       subjectId: sid,
@@ -180,11 +193,12 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
       language: lang,
       localFilePath: _file?.path,
     );
-    note.aiExplanation = _explain;
+    note.aiExplanation = parsed[lang] ?? _explain;
+    note.aiExplanationByLang = parsed;
 
     final hive = ref.read(hiveServiceProvider);
     await hive.upsertNote(note);
-    
+
     try {
       await ref.read(supabaseServiceProvider).pushUpsertNote(note);
     } catch (_) {
@@ -223,7 +237,11 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 16,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -264,7 +282,11 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                                   color: AppColors.accentSoft,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.photo_camera_outlined, color: AppColors.accent, size: 28),
+                                child: const Icon(
+                                  Icons.photo_camera_outlined,
+                                  color: AppColors.accent,
+                                  size: 28,
+                                ),
                               ),
                               const SizedBox(height: 20),
                               Text(
@@ -274,7 +296,10 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'Snap textbooks, formulas, diagrams, or blackboard outlines. Our AI reads the pixels to construct summaries & flashcards.',
-                                style: AppTextStyles.small.copyWith(color: AppColors.inkLight, height: 1.4),
+                                style: AppTextStyles.small.copyWith(
+                                  color: AppColors.inkLight,
+                                  height: 1.4,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -300,11 +325,18 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                                  const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Take Snap',
-                                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -326,11 +358,18 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.image_search_rounded, color: AppColors.ink, size: 18),
+                                  const Icon(
+                                    Icons.image_search_rounded,
+                                    color: AppColors.ink,
+                                    size: 18,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Import Gallery',
-                                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink, fontWeight: FontWeight.bold),
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -362,7 +401,9 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                         if (_busy)
                           const Positioned.fill(
                             child: ClipRRect(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
                               child: ScannerAnimation(),
                             ),
                           ),
@@ -386,7 +427,9 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                             const SizedBox(height: 6),
                             Text(
                               'Synthesizing text layers via Gemini client',
-                              style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
+                              style: AppTextStyles.small.copyWith(
+                                color: AppColors.inkLight,
+                              ),
                             ),
                           ],
                         ),
@@ -407,7 +450,10 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                                 alignment: Alignment.center,
                                 child: Text(
                                   'Retake',
-                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.ink,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -425,7 +471,10 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                                 alignment: Alignment.center,
                                 child: Text(
                                   AppStrings.get('process_ai', lang),
-                                  style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -440,11 +489,17 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.accent, size: 18),
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.accent,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'EXTRACTED CONCEPTS & SUMMARY',
-                          style: AppTextStyles.label.copyWith(color: AppColors.accent),
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.accent,
+                          ),
                         ),
                       ],
                     ),
@@ -458,7 +513,10 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
                       ),
                       child: Text(
                         _explain,
-                        style: AppTextStyles.bodyMedium.copyWith(height: 1.45, fontSize: 13.5),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          height: 1.45,
+                          fontSize: 13.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -517,7 +575,7 @@ class _ScannerAnimationState extends State<ScannerAnimation>
                     color: AppColors.accentGlow.withValues(alpha: 0.8),
                     blurRadius: 12,
                     spreadRadius: 2,
-                  )
+                  ),
                 ],
               ),
             ),
@@ -532,7 +590,6 @@ class _ScannerAnimationState extends State<ScannerAnimation>
 class _ViewfinderBorderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-
     // Corner guide variables
     const length = 20.0;
     final rPaint = Paint()
@@ -545,16 +602,36 @@ class _ViewfinderBorderPainter extends CustomPainter {
     canvas.drawLine(const Offset(0, 0), const Offset(0, length), rPaint);
 
     // Top-Right corner
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width - length, 0), rPaint);
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width - length, 0),
+      rPaint,
+    );
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, length), rPaint);
 
     // Bottom-Left corner
-    canvas.drawLine(Offset(0, size.height), Offset(length, size.height), rPaint);
-    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - length), rPaint);
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(length, size.height),
+      rPaint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(0, size.height - length),
+      rPaint,
+    );
 
     // Bottom-Right corner
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width - length, size.height), rPaint);
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - length), rPaint);
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width - length, size.height),
+      rPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width, size.height - length),
+      rPaint,
+    );
 
     // Dotted inner rectangle
     final dPaint = Paint()
@@ -571,25 +648,41 @@ class _ViewfinderBorderPainter extends CustomPainter {
     // Top horizontal dashed line
     double startX = inset;
     while (startX < size.width - inset) {
-      canvas.drawLine(Offset(startX, inset), Offset(startX + dashWidth, inset), dPaint);
+      canvas.drawLine(
+        Offset(startX, inset),
+        Offset(startX + dashWidth, inset),
+        dPaint,
+      );
       startX += dashWidth + dashSpace;
     }
     // Bottom horizontal dashed line
     startX = inset;
     while (startX < size.width - inset) {
-      canvas.drawLine(Offset(startX, size.height - inset), Offset(startX + dashWidth, size.height - inset), dPaint);
+      canvas.drawLine(
+        Offset(startX, size.height - inset),
+        Offset(startX + dashWidth, size.height - inset),
+        dPaint,
+      );
       startX += dashWidth + dashSpace;
     }
     // Left vertical dashed line
     double startY = inset;
     while (startY < size.height - inset) {
-      canvas.drawLine(Offset(inset, startY), Offset(inset, startY + dashWidth), dPaint);
+      canvas.drawLine(
+        Offset(inset, startY),
+        Offset(inset, startY + dashWidth),
+        dPaint,
+      );
       startY += dashWidth + dashSpace;
     }
     // Right vertical dashed line
     startY = inset;
     while (startY < size.height - inset) {
-      canvas.drawLine(Offset(size.width - inset, startY), Offset(size.width - inset, startY + dashWidth), dPaint);
+      canvas.drawLine(
+        Offset(size.width - inset, startY),
+        Offset(size.width - inset, startY + dashWidth),
+        dPaint,
+      );
       startY += dashWidth + dashSpace;
     }
   }
