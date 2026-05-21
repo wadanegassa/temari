@@ -222,7 +222,7 @@ class _ExamModeScreenState extends ConsumerState<ExamModeScreen> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      'Session Completed! 🎉',
+                      'Session Completed!',
                       style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.w800),
                       textAlign: TextAlign.center,
                     ),
