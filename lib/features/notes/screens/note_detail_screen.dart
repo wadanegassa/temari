@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:open_filex/open_filex.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/services/gemini_service.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../../shared/models/note.dart';
 import '../../../shared/widgets/scale_on_press.dart';
@@ -31,6 +33,27 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   bool _isExplaining = false;
   bool _isGeneratingCards = false;
   bool _showRawContent = false;
+
+  String _mimeTypeFromPath(String path) {
+    final p = path.toLowerCase();
+    if (p.endsWith('.png')) return 'image/png';
+    if (p.endsWith('.webp')) return 'image/webp';
+    if (p.endsWith('.gif')) return 'image/gif';
+    if (p.endsWith('.heic')) return 'image/heic';
+    if (p.endsWith('.heif')) return 'image/heif';
+    return 'image/jpeg';
+  }
+
+  String _fallbackSourceForRegeneration(Note n) {
+    final byLang = n.aiExplanationByLang;
+    if (byLang != null && byLang.isNotEmpty) {
+      return byLang.values.first;
+    }
+    if ((n.aiExplanation ?? '').trim().isNotEmpty) {
+      return n.aiExplanation!;
+    }
+    return n.content;
+  }
 
   @override
   void dispose() {
@@ -59,11 +82,52 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
 
     try {
       final gemini = ref.read(geminiServiceProvider);
+      final subjectName = hive.getSubject(n.subjectId)?.name;
       final buffer = StringBuffer();
-      final stream = gemini.explainText(
-        content: n.content,
-        language: code,
-      );
+      late final Stream<String> stream;
+
+      if (n.type == noteTypeFile && n.localFilePath != null) {
+        final f = File(n.localFilePath!);
+        if (await f.exists()) {
+          final bytes = await f.readAsBytes();
+          stream = gemini.explainPdf(
+            pdfBytes: bytes,
+            language: code,
+            subjectName: subjectName,
+            fileName: n.title,
+          );
+        } else {
+          stream = gemini.explainText(
+            content: _fallbackSourceForRegeneration(n),
+            language: code,
+            subjectName: subjectName,
+          );
+        }
+      } else if (n.type == noteTypePhoto && n.localFilePath != null) {
+        final f = File(n.localFilePath!);
+        if (await f.exists()) {
+          final bytes = await f.readAsBytes();
+          stream = gemini.explainImage(
+            imageBytes: bytes,
+            mimeType: _mimeTypeFromPath(n.localFilePath!),
+            language: code,
+            subjectName: subjectName,
+            fileName: n.title,
+          );
+        } else {
+          stream = gemini.explainText(
+            content: _fallbackSourceForRegeneration(n),
+            language: code,
+            subjectName: subjectName,
+          );
+        }
+      } else {
+        stream = gemini.explainText(
+          content: n.content,
+          language: code,
+          subjectName: subjectName,
+        );
+      }
 
       await for (final chunk in stream) {
         buffer.write(chunk);
@@ -72,20 +136,25 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
         setState(() {});
       }
 
-      n.aiExplanationByLang![code] = buffer.toString();
+      final normalized = gemini.normalizeExplanationByLanguage(
+        text: buffer.toString(),
+        requestedLanguage: code,
+      );
+      n.aiExplanationByLang!.addAll(normalized);
       n.aiExplanation = buffer.toString();
       n.language = code;
       await hive.upsertNote(n);
       await ref.read(supabaseServiceProvider).pushUpsertNote(n);
 
       ref.read(hiveTickProvider.notifier).state++;
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
+        String msg = 'AI explanation requires an internet connection.';
+        if (e is GeminiException) {
+          msg = 'AI Error: ${e.cleanMessage}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('AI explanation requires an internet connection.'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -96,7 +165,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
   Future<void> _generateFlashcards() async {
     final hive = ref.read(hiveServiceProvider);
     final settings = ref.read(settingsControllerProvider);
-    
+
     // Check Free limits: Max 40 flashcards total
     if (!settings.isPro && hive.flashcards.length >= 40) {
       ProPaywallSheet.show(context);
@@ -112,7 +181,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
     try {
       final lang = ref.read(languageProvider);
       final gemini = ref.read(geminiServiceProvider);
-      
+
       final cards = await gemini.generateFlashcards(
         content: n.aiExplanation ?? n.content,
         language: lang,
@@ -132,29 +201,60 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
       }
 
       ref.read(hiveTickProvider.notifier).state++;
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppColors.success,
             content: Text(
-              'Successfully generated ${cards.length} flashcards! 🎉',
-              style: AppTextStyles.small.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+              'Successfully generated ${cards.length} flashcards!',
+              style: AppTextStyles.small.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
+        String msg = 'Flashcard generation requires an internet connection.';
+        if (e is GeminiException) {
+          msg = 'AI Error: ${e.cleanMessage}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Flashcard generation requires an internet connection.'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
         );
       }
     } finally {
       setState(() => _isGeneratingCards = false);
+    }
+  }
+
+  Future<void> _openExternal() async {
+    final n = ref.read(hiveServiceProvider).getNote(widget.noteId);
+    final path = n?.localFilePath;
+    if (path == null) return;
+
+    try {
+      final result = await OpenFilex.open(path);
+      if (result.type != ResultType.done && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open file: ${result.message}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -175,7 +275,8 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
       _displayLang = n.language;
     }
 
-    final explanation = n.aiExplanationByLang?[_displayLang] ?? n.aiExplanation ?? '';
+    final explanation =
+        n.aiExplanationByLang?[_displayLang] ?? n.aiExplanation ?? '';
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
@@ -197,14 +298,21 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 16,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: TextField(
                       controller: _titleController,
-                      style: AppTextStyles.h2.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: AppTextStyles.h2.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         isDense: true,
@@ -231,33 +339,49 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.accentSoft,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
                           Expanded(
                             child: ScaleOnPress(
                               onTap: () {
-                                context.push('/pdf-viewer?filePath=${Uri.encodeComponent(n.localFilePath!)}&title=${Uri.encodeComponent(n.title)}');
+                                context.push(
+                                  '/pdf-viewer?filePath=${Uri.encodeComponent(n.localFilePath!)}&title=${Uri.encodeComponent(n.title)}',
+                                );
                               },
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.picture_as_pdf_rounded, color: AppColors.accent, size: 28),
+                                    const Icon(
+                                      Icons.picture_as_pdf_rounded,
+                                      color: AppColors.accent,
+                                      size: 28,
+                                    ),
                                     const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Open PDF Document',
-                                            style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
+                                            'Read in App',
+                                            style: AppTextStyles.bodyMedium
+                                                .copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.accent,
+                                                ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            'Tap to read the textbook PDF.',
-                                            style: AppTextStyles.small.copyWith(color: AppColors.accent.withValues(alpha: 0.7)),
+                                            'Use built-in PDF viewer.',
+                                            style: AppTextStyles.small.copyWith(
+                                              color: AppColors.accent
+                                                  .withValues(alpha: 0.7),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -268,7 +392,18 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.save_alt_rounded, color: AppColors.accent),
+                            icon: const Icon(
+                              Icons.launch_rounded,
+                              color: AppColors.accent,
+                            ),
+                            tooltip: 'Open in External App',
+                            onPressed: _openExternal,
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.save_alt_rounded,
+                              color: AppColors.accent,
+                            ),
                             tooltip: 'Save PDF to Device',
                             onPressed: () async {
                               try {
@@ -278,7 +413,8 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                                   if (context.mounted) {
                                     await DeviceSaveHelper.saveBinaryFile(
                                       context: context,
-                                      fileName: '${n.title.replaceAll(' ', '_')}.pdf',
+                                      fileName:
+                                          '${n.title.replaceAll(' ', '_')}.pdf',
                                       bytes: bytes,
                                       extension: 'pdf',
                                     );
@@ -289,7 +425,10 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error saving PDF: $e'), backgroundColor: Colors.red),
+                                    SnackBar(
+                                      content: Text('Error saving PDF: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
                                 }
                               }
@@ -302,35 +441,48 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                     const SizedBox(height: 16),
                   ],
                   // Action pills row (Mind Map, Flashcards, Ask Temari)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ActionPill(
-                          label: 'Mind Map 🌿',
-                          color: AppColors.accent,
-                          onTap: () {
-                            final settings = ref.read(settingsControllerProvider);
-                            if (!settings.isPro) {
-                              ProPaywallSheet.show(context);
-                            } else {
-                              context.push('/mindmap/${n.id}');
-                            }
-                          },
+                  if (n.type != noteTypeFile) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionPill(
+                            label: 'Mind Map',
+                            color: AppColors.accent,
+                            onTap: () {
+                              final settings = ref.read(
+                                settingsControllerProvider,
+                              );
+                              if (!settings.isPro) {
+                                ProPaywallSheet.show(context);
+                              } else {
+                                context.push('/mindmap/${n.id}');
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _ActionPill(
-                          label: 'Ask Temari 💬',
-                          color: AppColors.inkMid,
-                          onTap: () => context.push('/chat-session?noteId=${n.id}'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionPill(
+                            label: 'Ask Temari',
+                            color: AppColors.inkMid,
+                            onTap: () =>
+                                context.push('/chat-session?noteId=${n.id}'),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ] else ...[
+                    _ActionPill(
+                      label: 'Ask Temari',
+                      color: AppColors.inkMid,
+                      onTap: () => context.push('/chat-session?noteId=${n.id}'),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _ActionPill(
-                    label: _isGeneratingCards ? 'Generating Flashcards...' : 'Generate Review Flashcards 🎴',
+                    label: _isGeneratingCards
+                        ? 'Generating Flashcards...'
+                        : 'Generate Review Flashcards',
                     color: AppColors.success,
                     onTap: _isGeneratingCards ? null : _generateFlashcards,
                   ),
@@ -341,7 +493,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                     children: [
                       Text(
                         'EXPLANATION LANGUAGE',
-                        style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.inkLight,
+                        ),
                       ),
                       const Spacer(),
                       _LangChip(
@@ -381,27 +535,102 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.auto_awesome_outlined, color: AppColors.accent, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'AI Deep Explanation',
-                              style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
+                            const Icon(
+                              Icons.auto_awesome_outlined,
+                              color: AppColors.accent,
+                              size: 20,
                             ),
-                            const Spacer(),
-                            if (explanation.isNotEmpty)
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'AI Deep Explanation',
+                                style: AppTextStyles.h3.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (explanation.isNotEmpty) ...[
                               IconButton(
-                                icon: const Icon(Icons.save_alt_rounded, color: AppColors.accent, size: 20),
+                                icon: const Icon(
+                                  Icons.save_alt_rounded,
+                                  color: AppColors.accent,
+                                  size: 20,
+                                ),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 tooltip: 'Save Explanation to Device',
                                 onPressed: () {
                                   DeviceSaveHelper.saveTextFile(
                                     context: context,
-                                    fileName: 'temari_explanation_${n.title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.txt',
+                                    fileName:
+                                        'temari_explanation_${n.title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.txt',
                                     textContent: explanation,
                                   );
                                 },
                               ),
+                              const SizedBox(width: 12),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: AppColors.error,
+                                  size: 20,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Delete Explanation',
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Explanation?'),
+                                      content: const Text(
+                                        'Are you sure you want to delete this AI generated explanation?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text(
+                                            'Delete',
+                                            style: TextStyle(
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    final hive = ref.read(hiveServiceProvider);
+                                    n.aiExplanationByLang?.remove(_displayLang);
+                                    if (n.aiExplanationByLang?.isEmpty ??
+                                        true) {
+                                      n.aiExplanation = null;
+                                    } else {
+                                      n.aiExplanation =
+                                          n.aiExplanationByLang?[_displayLang] ??
+                                          n
+                                              .aiExplanationByLang
+                                              ?.values
+                                              .firstOrNull;
+                                    }
+                                    await hive.upsertNote(n);
+                                    await ref
+                                        .read(supabaseServiceProvider)
+                                        .pushUpsertNote(n);
+                                    ref.read(hiveTickProvider.notifier).state++;
+                                    setState(() {});
+                                  }
+                                },
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -409,12 +638,16 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                           const Center(
                             child: Padding(
                               padding: EdgeInsets.all(24.0),
-                              child: CircularProgressIndicator(color: AppColors.accent),
+                              child: CircularProgressIndicator(
+                                color: AppColors.accent,
+                              ),
                             ),
                           )
                         else
                           Text(
-                            explanation.isNotEmpty ? explanation : 'No AI explanation generated yet.',
+                            explanation.isNotEmpty
+                                ? explanation
+                                : 'No AI explanation generated yet.',
                             style: AppTextStyles.body.copyWith(
                               color: AppColors.ink,
                               fontSize: 14.5,
@@ -428,9 +661,13 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
 
                   // Collapsible Original Content Drawer
                   GestureDetector(
-                    onTap: () => setState(() => _showRawContent = !_showRawContent),
+                    onTap: () =>
+                        setState(() => _showRawContent = !_showRawContent),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.bgSecondary,
                         borderRadius: BorderRadius.circular(12),
@@ -438,13 +675,18 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            _showRawContent ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                            _showRawContent
+                                ? Icons.keyboard_arrow_down_rounded
+                                : Icons.keyboard_arrow_right_rounded,
                             color: AppColors.inkMid,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Show Original Material',
-                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.inkMid, fontSize: 13),
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.inkMid,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -461,7 +703,10 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       ),
                       child: Text(
                         n.content,
-                        style: AppTextStyles.small.copyWith(color: AppColors.inkMid, height: 1.5),
+                        style: AppTextStyles.small.copyWith(
+                          color: AppColors.inkMid,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -472,7 +717,9 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                     children: [
                       Text(
                         'PRACTICE QUIZ',
-                        style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.inkLight,
+                        ),
                       ),
                     ],
                   ),
@@ -483,23 +730,32 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.accentSoft,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Test your knowledge with an AI quiz! ✍️',
-                          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
+                          'Test your knowledge with an AI quiz!',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accent,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'Generate multiple choice questions based on this study content. Retake or export them anytime.',
-                          style: AppTextStyles.small.copyWith(color: AppColors.inkMid),
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.inkMid,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         ScaleOnPress(
-                          onTap: () => context.push('/quiz-session?noteId=${n.id}&subjectId=${n.subjectId}'),
+                          onTap: () => context.push(
+                            '/quiz-session?noteId=${n.id}&subjectId=${n.subjectId}',
+                          ),
                           child: Container(
                             height: 40,
                             decoration: BoxDecoration(
@@ -508,10 +764,11 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              'Start Practice Quiz ✦',
+                              'Start Practice Quiz',
                               style: AppTextStyles.small.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
+                                // ignore: deprecated_member_use
                               ),
                             ),
                           ),
@@ -549,7 +806,11 @@ class _ActionPill extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
         ),
       ),
     );
@@ -578,7 +839,9 @@ class _LangChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? AppColors.accentSoft : Colors.white,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isSelected ? AppColors.accent : AppColors.border),
+          border: Border.all(
+            color: isSelected ? AppColors.accent : AppColors.border,
+          ),
         ),
         child: Text(
           label,
@@ -621,7 +884,8 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
 
     // Free tier message limitation: Max 5 chat messages
     final settings = ref.read(settingsControllerProvider);
-    if (!settings.isPro && _messages.where((m) => m['role'] == 'user').length >= 5) {
+    if (!settings.isPro &&
+        _messages.where((m) => m['role'] == 'user').length >= 5) {
       Navigator.pop(context);
       ProPaywallSheet.show(context);
       return;
@@ -655,15 +919,23 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
       await for (final chunk in stream) {
         buffer.write(chunk);
         setState(() {
-          _messages[lastIndex] = {'role': 'assistant', 'text': buffer.toString()};
+          _messages[lastIndex] = {
+            'role': 'assistant',
+            'text': buffer.toString(),
+          };
         });
         _scrollToBottom();
       }
       HapticFeedback.lightImpact();
-    } catch (_) {
+    } catch (e) {
       final lastIndex = _messages.length - 1;
+      String errMsg =
+          'I could not reach the AI service. Please check your internet connection.';
+      if (e is GeminiException) {
+        errMsg = 'AI Error: ${e.cleanMessage}';
+      }
       setState(() {
-        _messages[lastIndex] = {'role': 'assistant', 'text': 'I could not reach the AI service. Please check your internet connection.'};
+        _messages[lastIndex] = {'role': 'assistant', 'text': errMsg};
       });
     } finally {
       setState(() => _isStreaming = false);
@@ -691,25 +963,46 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
           topRight: Radius.circular(24),
         ),
       ),
-      padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
       child: Column(
         children: [
           // Drag indicator
           Container(
             width: 40,
             height: 4,
-            decoration: BoxDecoration(color: AppColors.borderStrong, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(
+              color: AppColors.borderStrong,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.accent, size: 20),
+              const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: AppColors.accent,
+                size: 20,
+              ),
               const SizedBox(width: 8),
-              Text('Ask Temari', style: AppTextStyles.h2.copyWith(fontSize: 16)),
+              Text(
+                'Ask Temari',
+                style: AppTextStyles.h2.copyWith(fontSize: 16),
+              ),
               const Spacer(),
               ScaleOnPress(
                 onTap: () => Navigator.pop(context),
-                child: Text('Close', style: AppTextStyles.small.copyWith(color: AppColors.inkMid, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Close',
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.inkMid,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -721,7 +1014,9 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
                 ? Center(
                     child: Text(
                       'Ask any specific question about these study notes.',
-                      style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.inkLight,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   )
@@ -733,19 +1028,30 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
                       final m = _messages[i];
                       final isUser = m['role'] == 'user';
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: isUser ? AppColors.accent : Colors.white,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(14),
                               topRight: const Radius.circular(14),
-                              bottomLeft: isUser ? const Radius.circular(14) : Radius.zero,
-                              bottomRight: isUser ? Radius.zero : const Radius.circular(14),
+                              bottomLeft: isUser
+                                  ? const Radius.circular(14)
+                                  : Radius.zero,
+                              bottomRight: isUser
+                                  ? Radius.zero
+                                  : const Radius.circular(14),
                             ),
-                            border: isUser ? null : Border.all(color: AppColors.border),
+                            border: isUser
+                                ? null
+                                : Border.all(color: AppColors.border),
                           ),
                           child: Text(
                             m['text'] ?? '',
@@ -776,7 +1082,10 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
                     controller: _chatInput,
                     decoration: const InputDecoration(
                       hintText: 'Ask a question about this note...',
-                      hintStyle: TextStyle(fontSize: 13, color: AppColors.inkLight),
+                      hintStyle: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.inkLight,
+                      ),
                       border: InputBorder.none,
                     ),
                     style: const TextStyle(fontSize: 13.5),
@@ -790,8 +1099,15 @@ class _NoteChatSheetState extends ConsumerState<_NoteChatSheet> {
                 child: Container(
                   width: 48,
                   height: 48,
-                  decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  decoration: const BoxDecoration(
+                    color: AppColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
             ],
