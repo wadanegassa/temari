@@ -93,7 +93,13 @@ class _TextNoteScreenState extends ConsumerState<TextNoteScreen> {
       content: _text.text,
       language: lang,
     );
-    n.aiExplanation = _explain;
+    final gemini = ref.read(geminiServiceProvider);
+    final parsed = gemini.normalizeExplanationByLanguage(
+      text: _explain,
+      requestedLanguage: lang,
+    );
+    n.aiExplanation = parsed[lang] ?? _explain;
+    n.aiExplanationByLang = parsed;
     await ref.read(hiveServiceProvider).upsertNote(n);
     await ref.read(supabaseServiceProvider).pushUpsertNote(n);
     ref.read(hiveTickProvider.notifier).state++;
@@ -108,7 +114,10 @@ class _TextNoteScreenState extends ConsumerState<TextNoteScreen> {
       appBar: AppBar(
         title: Text(AppStrings.get('quick_add_text', lang)),
         actions: [
-          IconButton(onPressed: _dictate, icon: const Icon(Icons.mic_none_rounded)),
+          IconButton(
+            onPressed: _dictate,
+            icon: const Icon(Icons.mic_none_rounded),
+          ),
         ],
       ),
       body: ListView(
