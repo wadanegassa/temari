@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
@@ -32,36 +33,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final List<_OnboardingSlideData> slides = [
       _OnboardingSlideData(
         icon: Icons.mic_none_outlined,
-        title: lang == 'am'
-            ? 'ድምፅ፣ ፎቶ ወይም ፒዲኤፍ'
-            : (lang == 'om' ? 'Sagalee, suuraa ykn PDF' : 'Voice, photo, or file'),
-        body: lang == 'am'
-            ? 'የጥናት ማስታወሻዎችን በማንኛውም መንገድ ይጨምሩ።'
-            : (lang == 'om'
-                ? 'Yaada barruu keessan karaa barbaaddan dabaladhaa.'
-                : 'Add your lecture notes any way you want.'),
+        title: AppStrings.get('onboarding_1_title', lang),
+        body: AppStrings.get('onboarding_1_body', lang),
       ),
       _OnboardingSlideData(
         icon: Icons.style_outlined,
-        title: lang == 'am'
-            ? 'በአርቴፊሻል ኢንተለጀንስ በጥልቀት'
-            : (lang == 'om' ? 'AI\'n gadi fageenyaan ibsa' : 'AI explains it deeply'),
-        body: lang == 'am'
-            ? 'ሁሉንም ነገር በአማርኛ፣ በኦሮምኛ ወይም በእንግሊዝኛ ይረዱ።'
-            : (lang == 'om'
-                ? 'Afaan Oromoo, Amaaraa ykn Ingiliffaan hunda hubadhaa.'
-                : 'Understand anything in Amharic, Afaan Oromo, or English.'),
+        title: AppStrings.get('onboarding_2_title', lang),
+        body: AppStrings.get('onboarding_2_body', lang),
       ),
       _OnboardingSlideData(
         icon: Icons.wifi_off_outlined,
-        title: lang == 'am'
-          ? 'AI በመስመር ላይ ይሰራል'
-          : (lang == 'om' ? 'AI yeroo sarararra hojjata' : 'AI works online'),
-        body: lang == 'am'
-          ? 'AI ማብራሪያዎች፣ ፍላሽካርዶች እና የፈተና ጥያቄዎች ለመፍጠር በይነመረብ ያስፈልጋል።'
-            : (lang == 'om'
-            ? 'AI ibsa, kaardoota fi gaaffilee qorannoo uumuuf interneetiin barbaachisa.'
-            : 'AI explanations, flashcards, and exam predictions require internet access.'),
+        title: AppStrings.get('onboarding_3_title', lang),
+        body: AppStrings.get('onboarding_3_body', lang),
       ),
     ];
 
@@ -80,7 +63,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Text(
-                      lang == 'am' ? 'ዝለል' : (lang == 'om' ? 'Darbi' : 'Skip'),
+                      AppStrings.get('skip', lang),
                       style: AppTextStyles.small.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkMid,
@@ -133,8 +116,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 32.0),
               child: TemariButton(
                 label: _currentIndex < slides.length - 1
-                    ? (lang == 'am' ? 'ቀጣይ →' : (lang == 'om' ? 'Itti aanu →' : 'Next →'))
-                    : (lang == 'am' ? 'እንጀምር' : (lang == 'om' ? 'Jalqabi' : 'Get Started')),
+                    ? '${AppStrings.get('next', lang)} →'
+                    : AppStrings.get('get_started', lang),
                 onPressed: () {
                   if (_currentIndex < slides.length - 1) {
                     _pageController.nextPage(
