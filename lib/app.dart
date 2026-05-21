@@ -80,7 +80,6 @@ GoRouter createRouter(WidgetRef ref) {
       if (!auth.anonymous) {
         if (loc == '/splash' ||
             loc == '/onboarding' ||
-            loc == '/language' ||
             loc == '/auth' ||
             loc == '/chatbot') {
           if (!settings.onboardingComplete) {
@@ -114,10 +113,7 @@ GoRouter createRouter(WidgetRef ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/splash',
-        builder: (_, __) => const SplashScreen(),
-      ),
+      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (_, __) => const OnboardingScreen(),
@@ -126,14 +122,8 @@ GoRouter createRouter(WidgetRef ref) {
         path: '/language',
         builder: (_, __) => const LanguagePickScreen(),
       ),
-      GoRoute(
-        path: '/auth',
-        builder: (_, __) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/chatbot',
-        builder: (_, __) => const TutorChatScreen(),
-      ),
+      GoRoute(path: '/auth', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/chatbot', builder: (_, __) => const TutorChatScreen()),
       GoRoute(
         path: '/chat-session',
         builder: (_, s) => ChatbotScreen(
@@ -152,17 +142,15 @@ GoRouter createRouter(WidgetRef ref) {
         path: '/home',
         builder: (_, __) => const MainNavigationContainer(),
       ),
-      GoRoute(
-        path: '/subjects',
-        builder: (_, __) => const SubjectsScreen(),
-      ),
+      GoRoute(path: '/subjects', builder: (_, __) => const SubjectsScreen()),
       GoRoute(
         path: '/subjects/new',
         builder: (_, __) => const CreateSubjectScreen(),
       ),
       GoRoute(
         path: '/subject/:id',
-        builder: (_, s) => SubjectDetailScreen(subjectId: s.pathParameters['id']!),
+        builder: (_, s) =>
+            SubjectDetailScreen(subjectId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: '/note/voice',
@@ -200,17 +188,12 @@ GoRouter createRouter(WidgetRef ref) {
         builder: (_, s) =>
             ExamModeScreen(subjectId: s.pathParameters['subjectId']!),
       ),
-      GoRoute(
-        path: '/settings',
-        builder: (_, __) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: '/timer',
-        builder: (_, __) => const PomodoroTimerScreen(),
-      ),
+      GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+      GoRoute(path: '/timer', builder: (_, __) => const PomodoroTimerScreen()),
       GoRoute(
         path: '/mindmap/:noteId',
-        builder: (_, s) => MindMapCanvasScreen(noteId: s.pathParameters['noteId']!),
+        builder: (_, s) =>
+            MindMapCanvasScreen(noteId: s.pathParameters['noteId']!),
       ),
       GoRoute(
         path: '/pdf-viewer',
