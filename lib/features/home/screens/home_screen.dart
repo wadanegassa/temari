@@ -238,7 +238,7 @@ class HomeScreen extends ConsumerWidget {
                           const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
                           const SizedBox(width: 10),
                           Text(
-                            '⏱ Focus Round is active · Learning',
+                            'Focus Round is active · Learning',
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: Colors.white,
                               fontSize: 13,
