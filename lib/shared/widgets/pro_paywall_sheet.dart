@@ -72,7 +72,7 @@ class _ProPaywallSheetState extends ConsumerState<ProPaywallSheet> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Welcome to Temari Pro! 🎉',
+                'Welcome to Temari Pro!',
                 style: AppTextStyles.h1.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 12),
