@@ -37,16 +37,16 @@ class VoiceNoteScreen extends HookConsumerWidget {
     final isRecording = useState(false);
     final titleController = useTextEditingController();
     final bodyController = useTextEditingController();
-    
+
     // Listen to changes in the editors to update state
     useValueListenable(titleController);
     useValueListenable(bodyController);
-    
+
     final explanation = useState('');
     final explaining = useState(false);
-    
+
     final voice = ref.read(voiceServiceProvider);
-    
+
     // Wave animation controller
     final waveAnimController = useAnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -69,9 +69,11 @@ class VoiceNoteScreen extends HookConsumerWidget {
     Future<void> toggleRecording() async {
       final settings = ref.read(settingsControllerProvider);
       final hive = ref.read(hiveServiceProvider);
-      
+
       // Limit Check: Max 5 multimodal notes for free users
-      final multiNotes = hive.notes.where((n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file');
+      final multiNotes = hive.notes.where(
+        (n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file',
+      );
       if (!settings.isPro && multiNotes.length >= 5) {
         ProPaywallSheet.show(context);
         return;
@@ -100,7 +102,7 @@ class VoiceNoteScreen extends HookConsumerWidget {
 
       explaining.value = true;
       explanation.value = '';
-      
+
       try {
         final gemini = ref.read(geminiServiceProvider);
         final sid = _subject(ref);
@@ -133,7 +135,9 @@ class VoiceNoteScreen extends HookConsumerWidget {
       final sid = _subject(ref);
       if (sid.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select or create a subject first.')),
+          const SnackBar(
+            content: Text('Please select or create a subject first.'),
+          ),
         );
         return;
       }
@@ -152,7 +156,15 @@ class VoiceNoteScreen extends HookConsumerWidget {
       }
 
       final uid = ref.read(authControllerProvider).effectiveUserId;
-      final finalTitle = title.isEmpty ? '${body.split(' ').take(5).join(' ')}...' : title;
+      final finalTitle = title.isEmpty
+          ? '${body.split(' ').take(5).join(' ')}...'
+          : title;
+
+      final gemini = ref.read(geminiServiceProvider);
+      final parsed = gemini.normalizeExplanationByLanguage(
+        text: explanation.value,
+        requestedLanguage: lang,
+      );
 
       final n = Note.create(
         userId: uid,
@@ -162,17 +174,18 @@ class VoiceNoteScreen extends HookConsumerWidget {
         content: body,
         language: lang,
       );
-      n.aiExplanation = explanation.value;
-      n.aiSummary = explanation.value.length > 120
-          ? '${explanation.value.substring(0, 120)}…'
-          : explanation.value;
+      n.aiExplanation = parsed[lang] ?? explanation.value;
+      n.aiExplanationByLang = parsed;
+      n.aiSummary = n.aiExplanation!.length > 120
+          ? '${n.aiExplanation!.substring(0, 120)}…'
+          : n.aiExplanation!;
 
       await ref.read(hiveServiceProvider).upsertNote(n);
       await ref.read(supabaseServiceProvider).pushUpsertNote(n);
 
       ref.read(hiveTickProvider.notifier).state++;
       HapticFeedback.heavyImpact();
-      
+
       if (context.mounted) {
         context.pop();
       }
@@ -198,12 +211,16 @@ class VoiceNoteScreen extends HookConsumerWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 16,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Text(
-                    'Unified Study Note 📝',
+                    'Unified Study Note',
                     style: AppTextStyles.h1.copyWith(fontSize: 22),
                   ),
                 ],
@@ -233,17 +250,24 @@ class VoiceNoteScreen extends HookConsumerWidget {
                           color: AppColors.ink.withValues(alpha: 0.02),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
-                        )
+                        ),
                       ],
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title Editor
                         TextField(
                           controller: titleController,
-                          style: AppTextStyles.h2.copyWith(fontSize: 18, color: AppColors.ink, fontWeight: FontWeight.w900),
+                          style: AppTextStyles.h2.copyWith(
+                            fontSize: 18,
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w900,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             hintText: 'Note Title (e.g. Chemical Bonds)...',
@@ -251,16 +275,25 @@ class VoiceNoteScreen extends HookConsumerWidget {
                             isDense: true,
                           ),
                         ),
-                        const Divider(color: AppColors.border, height: 20, thickness: 1),
+                        const Divider(
+                          color: AppColors.border,
+                          height: 20,
+                          thickness: 1,
+                        ),
                         // Body Editor
                         TextField(
                           controller: bodyController,
                           maxLines: 10,
                           minLines: 6,
-                          style: AppTextStyles.body.copyWith(color: AppColors.ink, height: 1.55, fontSize: 14.5),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.ink,
+                            height: 1.55,
+                            fontSize: 14.5,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
-                            hintText: 'Type your study notes here or start dictating below...',
+                            hintText:
+                                'Type your study notes here or start dictating below...',
                             hintStyle: TextStyle(color: AppColors.inkLight),
                             isDense: true,
                           ),
@@ -294,10 +327,14 @@ class VoiceNoteScreen extends HookConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isRecording.value ? AppColors.error.withValues(alpha: 0.06) : Colors.white,
+                      color: isRecording.value
+                          ? AppColors.error.withValues(alpha: 0.06)
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isRecording.value ? AppColors.error.withValues(alpha: 0.2) : AppColors.border,
+                        color: isRecording.value
+                            ? AppColors.error.withValues(alpha: 0.2)
+                            : AppColors.border,
                         width: 1.2,
                       ),
                     ),
@@ -310,19 +347,26 @@ class VoiceNoteScreen extends HookConsumerWidget {
                             width: 52,
                             height: 52,
                             decoration: BoxDecoration(
-                              color: isRecording.value ? AppColors.error : AppColors.accent,
+                              color: isRecording.value
+                                  ? AppColors.error
+                                  : AppColors.accent,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: (isRecording.value ? AppColors.error : AppColors.accent)
-                                      .withValues(alpha: 0.25),
+                                  color:
+                                      (isRecording.value
+                                              ? AppColors.error
+                                              : AppColors.accent)
+                                          .withValues(alpha: 0.25),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
-                                )
+                                ),
                               ],
                             ),
                             child: Icon(
-                              isRecording.value ? Icons.stop_rounded : Icons.mic_none_rounded,
+                              isRecording.value
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_none_rounded,
                               color: Colors.white,
                               size: 24,
                             ),
@@ -334,9 +378,13 @@ class VoiceNoteScreen extends HookConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isRecording.value ? 'RECORDING LECTURE...' : 'VOICE DICTATION',
+                                isRecording.value
+                                    ? 'RECORDING LECTURE...'
+                                    : 'VOICE DICTATION',
                                 style: AppTextStyles.label.copyWith(
-                                  color: isRecording.value ? AppColors.error : AppColors.inkMid,
+                                  color: isRecording.value
+                                      ? AppColors.error
+                                      : AppColors.inkMid,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -346,7 +394,9 @@ class VoiceNoteScreen extends HookConsumerWidget {
                                     ? 'Speaking... Temari is capturing text live.'
                                     : 'Tap the microphone to speak your notes.',
                                 style: AppTextStyles.small.copyWith(
-                                  color: isRecording.value ? AppColors.error : AppColors.inkLight,
+                                  color: isRecording.value
+                                      ? AppColors.error
+                                      : AppColors.inkLight,
                                 ),
                               ),
                             ],
@@ -358,9 +408,12 @@ class VoiceNoteScreen extends HookConsumerWidget {
                   const SizedBox(height: 24),
 
                   // Actions row
-                  if (bodyController.text.isNotEmpty && explanation.value.isEmpty) ...[
+                  if (bodyController.text.isNotEmpty &&
+                      explanation.value.isEmpty) ...[
                     TemariButton(
-                      label: explaining.value ? 'Generating AI Explanations...' : AppStrings.get('explain_ai', lang),
+                      label: explaining.value
+                          ? 'Generating AI Explanations...'
+                          : AppStrings.get('explain_ai', lang),
                       onPressed: explaining.value ? null : explain,
                     ),
                     const SizedBox(height: 12),
@@ -375,7 +428,11 @@ class VoiceNoteScreen extends HookConsumerWidget {
                   if (explanation.value.isNotEmpty) ...[
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.success, size: 16),
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.success,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'AI TUTOR INSIGHTS',
@@ -392,12 +449,19 @@ class VoiceNoteScreen extends HookConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppColors.successSoft.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.success.withValues(alpha: 0.2), width: 1.5),
+                        border: Border.all(
+                          color: AppColors.success.withValues(alpha: 0.2),
+                          width: 1.5,
+                        ),
                       ),
                       padding: const EdgeInsets.all(18),
                       child: Text(
                         explanation.value,
-                        style: AppTextStyles.body.copyWith(color: AppColors.inkMid, height: 1.55, fontSize: 14.5),
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.inkMid,
+                          height: 1.55,
+                          fontSize: 14.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -444,8 +508,14 @@ class WaveformPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: active
-            ? [AppColors.error.withValues(alpha: 0.15), AppColors.accentGlow.withValues(alpha: 0.05)]
-            : [AppColors.accent.withValues(alpha: 0.15), AppColors.accentSoft.withValues(alpha: 0.05)],
+            ? [
+                AppColors.error.withValues(alpha: 0.15),
+                AppColors.accentGlow.withValues(alpha: 0.05),
+              ]
+            : [
+                AppColors.accent.withValues(alpha: 0.15),
+                AppColors.accentSoft.withValues(alpha: 0.05),
+              ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;
 
@@ -493,6 +563,7 @@ class WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WaveformPainter oldDelegate) {
-    return oldDelegate.active != active || oldDelegate.animationValue != animationValue;
+    return oldDelegate.active != active ||
+        oldDelegate.animationValue != animationValue;
   }
 }
