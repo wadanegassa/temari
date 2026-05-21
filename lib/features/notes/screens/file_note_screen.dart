@@ -46,7 +46,9 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
 
     // Multimodal Pro limit cap checking (limit 5 total for free accounts)
     final multiCount = hive.notes
-        .where((n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file')
+        .where(
+          (n) => n.type == 'voice' || n.type == 'photo' || n.type == 'file',
+        )
         .length;
 
     if (!settings.isPro && multiCount >= 5) {
@@ -69,7 +71,9 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Document exceeds limit. Please upload a PDF under 10 MB.'),
+              content: Text(
+                'Document exceeds limit. Please upload a PDF under 10 MB.',
+              ),
               backgroundColor: AppColors.error,
             ),
           );
@@ -131,7 +135,8 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _explain = 'AI extraction failed. Check your internet connection and try again.';
+          _explain =
+              'AI extraction failed. Check your internet connection and try again.';
         });
       }
     } finally {
@@ -146,7 +151,7 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
   Future<void> _save() async {
     final subs = ref.read(subjectsProvider);
     final sid = widget.subjectId ?? (subs.isNotEmpty ? subs.first.id : '');
-    
+
     if (sid.isEmpty || _bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -164,7 +169,8 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
     String? localPath;
     try {
       final dir = await getApplicationDocumentsDirectory();
-      localPath = '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${_name ?? "document.pdf"}';
+      localPath =
+          '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${_name ?? "document.pdf"}';
       final file = File(localPath);
       await file.writeAsBytes(_bytes!);
     } catch (e) {
@@ -184,7 +190,12 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
 
     final uid = ref.read(authControllerProvider).effectiveUserId;
     final lang = ref.read(languageProvider);
-    
+    final gemini = ref.read(geminiServiceProvider);
+    final parsed = gemini.normalizeExplanationByLanguage(
+      text: _explain,
+      requestedLanguage: lang,
+    );
+
     final note = Note.create(
       userId: uid,
       subjectId: sid,
@@ -194,11 +205,12 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
       language: lang,
       localFilePath: localPath,
     );
-    note.aiExplanation = _explain;
+    note.aiExplanation = parsed[lang] ?? _explain;
+    note.aiExplanationByLang = parsed;
 
     final hive = ref.read(hiveServiceProvider);
     await hive.upsertNote(note);
-    
+
     try {
       await ref.read(supabaseServiceProvider).pushUpsertNote(note);
     } catch (_) {
@@ -240,7 +252,11 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.ink),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 16,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -281,7 +297,11 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                   color: AppColors.accentSoft,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.accent, size: 26),
+                                child: const Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  color: AppColors.accent,
+                                  size: 26,
+                                ),
                               ),
                               const SizedBox(height: 18),
                               Text(
@@ -291,7 +311,10 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'Add syllabi, lecture slides, assignments, or complete textbook notes. Max limit 10 MB.',
-                                style: AppTextStyles.small.copyWith(color: AppColors.inkLight, height: 1.45),
+                                style: AppTextStyles.small.copyWith(
+                                  color: AppColors.inkLight,
+                                  height: 1.45,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -314,11 +337,18 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.file_open_outlined, color: Colors.white, size: 18),
+                            const Icon(
+                              Icons.file_open_outlined,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Choose PDF Document',
-                              style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -344,7 +374,11 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                   color: AppColors.error.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error, size: 28),
+                                child: const Icon(
+                                  Icons.picture_as_pdf_rounded,
+                                  color: AppColors.error,
+                                  size: 28,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -353,14 +387,19 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                   children: [
                                     Text(
                                       _name ?? 'Document.pdf',
-                                      style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                      style: AppTextStyles.h3.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       _formatSize(_bytes!.length),
-                                      style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
+                                      style: AppTextStyles.small.copyWith(
+                                        color: AppColors.inkLight,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -372,7 +411,9 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                         if (_busy)
                           const Positioned.fill(
                             child: ClipRRect(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
                               child: _ScannerSweepAnimation(),
                             ),
                           ),
@@ -396,7 +437,9 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                             const SizedBox(height: 6),
                             Text(
                               'Structuring lecture layout definitions',
-                              style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
+                              style: AppTextStyles.small.copyWith(
+                                color: AppColors.inkLight,
+                              ),
                             ),
                           ],
                         ),
@@ -421,7 +464,10 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                 alignment: Alignment.center,
                                 child: Text(
                                   'Change File',
-                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.ink,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -439,7 +485,10 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                                 alignment: Alignment.center,
                                 child: Text(
                                   AppStrings.get('process_ai', lang),
-                                  style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -454,11 +503,17 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                     const SizedBox(height: 28),
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.accent, size: 18),
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: AppColors.accent,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'AI TEXTBOOK EXTRACTION & CONCEPTS',
-                          style: AppTextStyles.label.copyWith(color: AppColors.accent),
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.accent,
+                          ),
                         ),
                       ],
                     ),
@@ -472,7 +527,10 @@ class _FileNoteScreenState extends ConsumerState<FileNoteScreen> {
                       ),
                       child: Text(
                         _explain,
-                        style: AppTextStyles.bodyMedium.copyWith(height: 1.45, fontSize: 13.5),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          height: 1.45,
+                          fontSize: 13.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -531,7 +589,7 @@ class _ScannerSweepAnimationState extends State<_ScannerSweepAnimation>
                     color: AppColors.accentGlow.withValues(alpha: 0.8),
                     blurRadius: 12,
                     spreadRadius: 2,
-                  )
+                  ),
                 ],
               ),
             ),
@@ -567,40 +625,76 @@ class _DashedZonePainter extends CustomPainter {
     canvas.drawLine(const Offset(0, 0), const Offset(0, length), rPaint);
 
     // Top-Right corner
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width - length, 0), rPaint);
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width - length, 0),
+      rPaint,
+    );
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, length), rPaint);
 
     // Bottom-Left corner
-    canvas.drawLine(Offset(0, size.height), Offset(length, size.height), rPaint);
-    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - length), rPaint);
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(length, size.height),
+      rPaint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(0, size.height - length),
+      rPaint,
+    );
 
     // Bottom-Right corner
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width - length, size.height), rPaint);
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - length), rPaint);
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width - length, size.height),
+      rPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width, size.height),
+      Offset(size.width, size.height - length),
+      rPaint,
+    );
 
     // Draw dashed borders inset
     // Top line
     double startX = inset;
     while (startX < size.width - inset) {
-      canvas.drawLine(Offset(startX, inset), Offset(startX + dashWidth, inset), dPaint);
+      canvas.drawLine(
+        Offset(startX, inset),
+        Offset(startX + dashWidth, inset),
+        dPaint,
+      );
       startX += dashWidth + dashSpace;
     }
     // Bottom line
     startX = inset;
     while (startX < size.width - inset) {
-      canvas.drawLine(Offset(startX, size.height - inset), Offset(startX + dashWidth, size.height - inset), dPaint);
+      canvas.drawLine(
+        Offset(startX, size.height - inset),
+        Offset(startX + dashWidth, size.height - inset),
+        dPaint,
+      );
       startX += dashWidth + dashSpace;
     }
     // Left line
     double startY = inset;
     while (startY < size.height - inset) {
-      canvas.drawLine(Offset(inset, startY), Offset(inset, startY + dashWidth), dPaint);
+      canvas.drawLine(
+        Offset(inset, startY),
+        Offset(inset, startY + dashWidth),
+        dPaint,
+      );
       startY += dashWidth + dashSpace;
     }
     // Right line
     startY = inset;
     while (startY < size.height - inset) {
-      canvas.drawLine(Offset(size.width - inset, startY), Offset(size.width - inset, startY + dashWidth), dPaint);
+      canvas.drawLine(
+        Offset(size.width - inset, startY),
+        Offset(size.width - inset, startY + dashWidth),
+        dPaint,
+      );
       startY += dashWidth + dashSpace;
     }
   }
