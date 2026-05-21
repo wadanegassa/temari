@@ -51,7 +51,7 @@ class AppEnv {
   static String get geminiModel {
     final v = dotenv.env['GEMINI_MODEL']?.trim();
     if (v != null && v.isNotEmpty) return v;
-    return const String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-2.5-flash');
+    return const String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-3.5-flash');
   }
 
   static String get supabaseUrl {
