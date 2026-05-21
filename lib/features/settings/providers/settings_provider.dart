@@ -34,7 +34,7 @@ class SettingsController extends ChangeNotifier {
 
   bool get isPro => _s['is_pro'] == true;
 
-  String get aiModel => _s['ai_model'] as String? ?? 'gemini-1.5-flash';
+  String get aiModel => _s['ai_model'] as String? ?? 'gemini-3.5-flash';
 
   Future<void> setAiModel(String model) async {
     await _hive.patchSettings({'ai_model': model});
