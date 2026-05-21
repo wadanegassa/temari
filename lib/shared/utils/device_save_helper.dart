@@ -22,7 +22,7 @@ class DeviceSaveHelper {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Saved to device successfully! 💾'),
+              content: Text('Saved to device successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -60,7 +60,7 @@ class DeviceSaveHelper {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Saved to device successfully! 💾'),
+              content: Text('Saved to device successfully!'),
               backgroundColor: Colors.green,
             ),
           );
