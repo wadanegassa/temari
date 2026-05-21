@@ -38,6 +38,7 @@ dependencies:
   image_picker: ^1.1.2
   file_picker: ^8.1.6
   pdfx: ^2.8.0
+  open_filex: ^4.5.0
 
   # UI / Nav
   google_fonts: ^6.2.1
