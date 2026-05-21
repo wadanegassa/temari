@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_env.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../core/providers/core_providers.dart';
@@ -109,8 +110,9 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   }
 
   void _startNewSession() {
+    final lang = ref.read(languageProvider);
     HapticFeedback.mediumImpact();
-    final newSession = _createSession(title: 'New session');
+    final newSession = _createSession(lang, title: AppStrings.get('new_session', lang));
     setState(() {
       _sessions.insert(0, newSession);
       _activeSessionId = newSession.id;
@@ -164,27 +166,27 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     }
   }
 
-  String _assistantGreeting() {
-    return 'Hello! I am Temari, your expert Ethiopian university tutor. Ask me any academic questions, textbook concepts, formulas, or general exam preparations. How can I help you excel today?';
+  String _assistantGreeting(String lang) {
+    return AppStrings.get('chat_greeting', lang);
   }
 
-  Map<String, String> _assistantGreetingMessage() => {
+  Map<String, String> _assistantGreetingMessage(String lang) => {
         'role': 'assistant',
-        'text': _assistantGreeting(),
+        'text': _assistantGreeting(lang),
       };
 
-  _ChatSession _createSession({String? title}) {
+  _ChatSession _createSession(String lang, {String? title}) {
     final now = DateTime.now().toUtc();
     return _ChatSession(
       id: now.microsecondsSinceEpoch.toString(),
-      title: title ?? 'New section',
+      title: title ?? AppStrings.get('new_session', lang),
       createdAt: now,
       updatedAt: now,
-      messages: [_assistantGreetingMessage()],
+      messages: [_assistantGreetingMessage(lang)],
     );
   }
 
-  String _sessionTitleFromMessages(List<Map<String, String>> messages) {
+  String _sessionTitleFromMessages(List<Map<String, String>> messages, String lang) {
     for (final message in messages) {
       if (message['role'] != 'user') continue;
       final text = (message['text'] ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -192,7 +194,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
       if (text.length <= 34) return text;
       return '${text.substring(0, 34).trim()}…';
     }
-    return 'New section';
+    return AppStrings.get('new_session', lang);
   }
 
   String _sessionPreview(_ChatSession session) {
@@ -241,6 +243,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   }
 
   void _loadHistory() {
+    final lang = ref.read(languageProvider);
     final loadedSessions = <_ChatSession>[];
 
     try {
@@ -261,7 +264,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
             title: 'Chat history',
             createdAt: DateTime.now().toUtc(),
             updatedAt: DateTime.now().toUtc(),
-            messages: legacy.isNotEmpty ? legacy : [_assistantGreetingMessage()],
+            messages: legacy.isNotEmpty ? legacy : [_assistantGreetingMessage(lang)],
           ),
         );
       }
@@ -270,7 +273,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     }
 
     if (loadedSessions.isEmpty) {
-      loadedSessions.add(_createSession(title: 'Chat history'));
+      loadedSessions.add(_createSession(lang, title: 'Chat history'));
     }
 
     if (!mounted) return;
@@ -288,14 +291,15 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   }
 
   Future<void> _saveHistory() async {
+    final lang = ref.read(languageProvider);
     try {
       final hive = ref.read(hiveServiceProvider);
       final active = _activeSession;
       if (active != null) {
         active.messages = List<Map<String, String>>.from(_messages.map((m) => Map<String, String>.from(m)));
         active.updatedAt = DateTime.now().toUtc();
-        if (active.title == 'New section') {
-          active.title = _sessionTitleFromMessages(active.messages);
+        if (active.title == AppStrings.get('new_session', lang) || active.title == 'New section' || active.title == 'Chat history') {
+          active.title = _sessionTitleFromMessages(active.messages, lang);
         }
       }
       await hive.patchSettings({
@@ -338,7 +342,8 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     setState(() {
       _sessions.removeWhere((session) => session.id == sessionId);
       if (_sessions.isEmpty) {
-        _sessions.add(_createSession(title: 'Chat history'));
+        final lang = ref.read(languageProvider);
+        _sessions.add(_createSession(lang, title: 'Chat history'));
       }
 
       if (wasActive) {
@@ -360,11 +365,12 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   }
 
   void _clearAllHistory() {
+    final lang = ref.read(languageProvider);
     HapticFeedback.mediumImpact();
     setState(() {
       _sessions
         ..clear()
-        ..add(_createSession(title: 'Chat history'));
+        ..add(_createSession(lang, title: 'Chat history'));
       _activeSessionId = _sessions.first.id;
       _messages
         ..clear()
@@ -376,11 +382,12 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   }
 
   void _syncActiveSession({String? title}) {
+    final lang = ref.read(languageProvider);
     final active = _activeSession;
     if (active == null) return;
     active.messages = List<Map<String, String>>.from(_messages.map((m) => Map<String, String>.from(m)));
     active.updatedAt = DateTime.now().toUtc();
-    active.title = title ?? _sessionTitleFromMessages(active.messages);
+    active.title = title ?? _sessionTitleFromMessages(active.messages, lang);
   }
 
   Future<void> _copyText(String text) async {
@@ -399,6 +406,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   Future<void> _send(String text) async {
     if (text.trim().isEmpty || _busy) return;
 
+    final lang = ref.read(languageProvider);
     final settings = ref.read(settingsControllerProvider);
     final isPro = settings.isPro;
     final userMsgCount = _messages.where((m) => m['role'] == 'user').length;
@@ -421,7 +429,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
       _input.clear();
       _busy = true;
       _view = _ChatView.chat;
-      _syncActiveSession(title: _sessionTitleFromMessages(_messages));
+      _syncActiveSession(title: _sessionTitleFromMessages(_messages, lang));
     });
 
     HapticFeedback.lightImpact();
@@ -429,7 +437,6 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
 
     try {
       final gemini = ref.read(geminiServiceProvider);
-      final lang = ref.read(languageProvider);
       final historyList = _messages.sublist(0, _messages.length - 2);
 
       final stream = gemini.generalChatStream(
@@ -460,15 +467,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
             error.message.contains('Gemini API key is not configured')) {
           errorMessage = 'AI is not configured yet. Add your Gemini API key in assets/dotenv or .env, then restart the app.';
         } else if (error is GeminiException) {
-          if (error.statusCode == 401 || error.statusCode == 403) {
-            errorMessage = 'Gemini rejected the request. Check your API key and billing/project access.';
-          } else if (error.statusCode == 429) {
-            errorMessage = 'Gemini is rate limiting requests right now. Please try again in a moment.';
-          } else if (error.statusCode == 404) {
-            errorMessage = 'Gemini model not found. Check the configured model name in AppEnv.geminiModel.';
-          } else {
-            errorMessage = 'Gemini request failed (${error.statusCode}). Please check your configuration and try again.';
-          }
+          errorMessage = 'AI Error: ${error.cleanMessage}';
         } else if (error is SocketException || error is HandshakeException) {
           errorMessage = 'Network connection failed. Please check your internet and try again.';
         }
@@ -491,7 +490,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     }
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String lang) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: const BoxDecoration(
@@ -542,14 +541,14 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                   ),
                 ),
                 Text(
-                  'Online · ${_prettyModelName(AppEnv.geminiModel)}',
+                  'Online · ${_prettyModelName(ref.watch(settingsControllerProvider).aiModel)}',
                   style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
                 ),
               ],
             ),
           ),
           IconButton(
-            tooltip: 'New Session',
+            tooltip: AppStrings.get('new_session', lang),
             icon: const Icon(Icons.add_comment_rounded, color: AppColors.accent, size: 22),
             onPressed: _startNewSession,
           ),
@@ -575,7 +574,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     );
   }
 
-  Widget _buildChatView(List<String> suggestions) {
+  Widget _buildChatView(List<String> suggestions, String lang) {
     return Column(
       children: [
         Expanded(
@@ -616,7 +615,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                       Padding(
                         padding: EdgeInsets.only(right: isUser ? 0 : 26, top: 0),
                         child: Text(
-                          isLoadingBubble ? 'Temari is thinking...' : text,
+                          isLoadingBubble ? AppStrings.get('chat_thinking', lang) : text,
                           style: AppTextStyles.body.copyWith(
                             fontSize: 14,
                             color: AppColors.ink,
@@ -694,12 +693,12 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
             ),
           ),
         const SizedBox(height: 12),
-        _buildComposer(),
+        _buildComposer(lang),
       ],
     );
   }
 
-  Widget _buildHistoryView() {
+  Widget _buildHistoryView(String lang) {
     final sessions = [..._sessions]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return Column(
@@ -710,20 +709,20 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Your chat sections',
+                  AppStrings.get('chat_history_title', lang),
                   style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               TextButton.icon(
                 onPressed: _startNewSession,
                 icon: const Icon(Icons.add_comment_rounded, size: 18, color: AppColors.accent),
-                label: const Text('New Chat', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                label: Text(AppStrings.get('new_session', lang), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: sessions.isEmpty ? null : _clearAllHistory,
                 icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-                label: const Text('Clear all'),
+                label: Text(AppStrings.get('clear_all', lang)),
               ),
             ],
           ),
@@ -732,7 +731,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
           child: sessions.isEmpty
               ? Center(
                   child: Text(
-                    'No chat history yet.',
+                    AppStrings.get('no_history', lang),
                     style: AppTextStyles.small.copyWith(color: AppColors.inkLight),
                   ),
                 )
@@ -860,12 +859,12 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                   },
                 ),
         ),
-        _buildComposer(),
+        _buildComposer(lang),
       ],
     );
   }
 
-  Widget _buildComposer() {
+  Widget _buildComposer(String lang) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       color: Colors.transparent,
@@ -900,7 +899,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                       onSubmitted: _send,
                       style: AppTextStyles.body.copyWith(fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: _isListening ? 'Listening...' : 'Ask Temari your question...',
+                        hintText: _isListening ? 'Listening...' : AppStrings.get('chat_input_hint', lang),
                         hintStyle: TextStyle(
                           color: _isListening ? AppColors.error : AppColors.inkLight,
                           fontWeight: _isListening ? FontWeight.bold : FontWeight.normal,
@@ -950,22 +949,20 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = [
-      'Explain Big O notation 💡',
-      'Ethiopian History key dates 🏛️',
-      'Explain Photosynthesis simply 🌱',
-      'How to study for finals effectively? 🧠',
-      'Draft a physics research outline 📝',
-    ];
+    final lang = ref.watch(languageProvider);
+    final suggestions = lang == 'am' 
+      ? ['ስለ ቢግ ኦ ኖቴሽን አስረዳኝ', 'የኢትዮጵያ ታሪክ ቁልፍ ቀናት', 'ፎቶሲንተሲስን በቀላሉ አስረዳኝ', 'ለፈተና እንዴት በብቃት ማጥናት እችላለሁ?', 'የፊዚክስ ጥናት እቅድ አውጣልኝ']
+      : (lang == 'om' ? ['Waa\'ee Big O naaf ibsi', 'Guyyoota ijoo seenaa Itoophiyaa', 'Fotosintesis salphaatti naaf ibsi', 'Akkamitti qorumsaaf qophaa\'uun danda\'ama?', 'Wixinee qorannoo fiiziksii naaf qopheessi']
+      : ['Explain Big O notation', 'Ethiopian History key dates', 'Explain Photosynthesis simply', 'How to study for finals effectively?', 'Draft a physics research outline']);
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(lang),
             Expanded(
-              child: _view == _ChatView.history ? _buildHistoryView() : _buildChatView(suggestions),
+              child: _view == _ChatView.history ? _buildHistoryView(lang) : _buildChatView(suggestions, lang),
             ),
           ],
         ),
