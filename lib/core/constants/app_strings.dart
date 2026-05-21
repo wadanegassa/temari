@@ -131,8 +131,7 @@ class AppStrings {
       kLangOromo: 'AI\'n hojjechi',
     },
     'offline_ai_pending': {
-      kLangEnglish:
-          'AI features require an internet connection.',
+      kLangEnglish: 'AI features require an internet connection.',
       kLangAmharic: 'የAI ባህሪዎች የበይነመረብ ግንኙነት ያስፈልጋቸዋል።',
       kLangOromo: 'Tajaajilawwan AI qunnamtii interneetii barbaadu.',
     },
@@ -142,8 +141,7 @@ class AppStrings {
       kLangOromo: 'Gargaara barnoota keessan',
     },
     'onboarding_1_body': {
-      kLangEnglish:
-          'Capture voice, photos, PDFs, and notes — then learn with depth.',
+      kLangEnglish: 'Capture voice, photos, PDFs, and notes — then learn with depth.',
       kLangAmharic: 'ድምፅ፣ ፎቶ፣ PDF እና ማስታወሻ ይያዙ — ከዚያ በጥልቀት ይማሩ።',
       kLangOromo: 'Sagalee, suuraa, PDF fi yaada qabattan — booddee baradhaa.',
     },
@@ -277,6 +275,53 @@ class AppStrings {
       kLangAmharic: 'ስለ',
       kLangOromo: 'Waa\'ee',
     },
+    'home': {
+      kLangEnglish: 'Home',
+      kLangAmharic: 'መነሻ',
+      kLangOromo: 'Mata duree',
+    },
+    'subjects': {
+      kLangEnglish: 'Subjects',
+      kLangAmharic: 'ትምህርቶች',
+      kLangOromo: 'Barnoota',
+    },
+    'timer': {
+      kLangEnglish: 'Focus',
+      kLangAmharic: 'ትኩረት',
+      kLangOromo: 'Focus',
+    },
+    'account_temari': {
+      kLangEnglish: 'Temari Account',
+      kLangAmharic: 'የተማሪ መለያ',
+      kLangOromo: 'Akkaawuntii Temari',
+    },
+    'sign_in_continue': {
+      kLangEnglish: 'Sign in to continue',
+      kLangAmharic: 'ለመቀጠል ይግቡ',
+      kLangOromo: 'Itti fufuuf seeni',
+    },
+    'auth_helper_text': {
+      kLangEnglish:
+          'If your email is new, Temari will create the account automatically after the first sign-in attempt.',
+      kLangAmharic: 'ኢሜልዎ አዲስ ከሆነ፣ ተማሪ ከመጀመሪያው የመግቢያ ሙከራ በኋላ መለያውን በራስ-ሰር ይፈጥራል።',
+      kLangOromo:
+          'Imeelliin keessan haaraa yoo ta\'e, Temari yaalii seenuu jalqabaa booda akkaawuntii ofumaan uuma.',
+    },
+    'continue_google': {
+      kLangEnglish: 'Continue with Google',
+      kLangAmharic: 'በGoogle ይቀጥሉ',
+      kLangOromo: 'Google\'n itti fufi',
+    },
+    'email_address': {
+      kLangEnglish: 'Email address',
+      kLangAmharic: 'የኢሜይል አድራሻ',
+      kLangOromo: 'Teessoo Imeelii',
+    },
+    'please_wait': {
+      kLangEnglish: 'Please wait...',
+      kLangAmharic: 'እባክዎ ይጠብቁ...',
+      kLangOromo: 'Maaloo obsi...',
+    },
     'sync_status': {
       kLangEnglish: 'Sync status',
       kLangAmharic: 'የማመሳሰል ሁኔታ',
@@ -298,8 +343,7 @@ class AppStrings {
       kLangOromo: 'Ba\'i',
     },
     'create_account_sync': {
-      kLangEnglish:
-          'Create a free account to back up your notes on any device.',
+      kLangEnglish: 'Create a free account to back up your notes on any device.',
       kLangAmharic: 'መለያ ይፍጠሩ እና ዳታዎ ይጠበቃል።',
       kLangOromo: 'Akkaawuntii bilisaa uumaa fi daataa keessan eegaa.',
     },
@@ -422,6 +466,44 @@ class AppStrings {
       kLangEnglish: 'Exam predictions are part of Temari Pro.',
       kLangAmharic: 'የፈተና ትንቢት በPro ውስጥ ነው።',
       kLangOromo: 'Eegumsa qoromaa Pro keessatti.',
+    },
+    'chat_greeting': {
+      kLangEnglish:
+          'Hello! I am Temari, your expert Ethiopian university tutor. Ask me any academic questions, textbook concepts, formulas, or general exam preparations. How can I help you excel today?',
+      kLangAmharic:
+          'ሰላም! እኔ ተማሪ ነኝ፣ የእርስዎ የኢትዮጵያ ዩኒቨርሲቲ ሞግዚት። ማንኛውንም የትምህርት ጥያቄዎችን፣ የመማሪያ መጽሐፍ ጽንሰ-ሀሳቦችን፣ ቀመሮችን ወይም አጠቃላይ የፈተና ዝግጅቶችን ይጠይቁኝ። ዛሬ እንዴት ልረዳዎት እችላለሁ?',
+      kLangOromo:
+          'Akkam! Ani Temari dha, gargaaraa barnoota yunivarsiitii Itoophiyaa keessanii. Gaaffilee barnootaa, yaada kitaabaa, foormulaa, ykn qophii qorumsaa hunda na gaafadhaa. Har\'a akkamitti isin gargaaruu danda\'a?',
+    },
+    'new_session': {
+      kLangEnglish: 'New session',
+      kLangAmharic: 'አዲስ ክፍለ ጊዜ',
+      kLangOromo: 'Kutaa haaraa',
+    },
+    'chat_thinking': {
+      kLangEnglish: 'Temari is thinking...',
+      kLangAmharic: 'ተማሪ እያሰበ ነው...',
+      kLangOromo: 'Temari yaadaa jira...',
+    },
+    'chat_input_hint': {
+      kLangEnglish: 'Ask Temari your question...',
+      kLangAmharic: 'ለተማሪ ጥያቄዎን ይጠይቁ...',
+      kLangOromo: 'Temari gaaffii kee gaafadhu...',
+    },
+    'chat_history_title': {
+      kLangEnglish: 'Your chat sections',
+      kLangAmharic: 'የእርስዎ የውይይት ክፍሎች',
+      kLangOromo: 'Kutaa haasaa keessanii',
+    },
+    'clear_all': {
+      kLangEnglish: 'Clear all',
+      kLangAmharic: 'ሁሉንም አጽዳ',
+      kLangOromo: 'Hunda haqi',
+    },
+    'no_history': {
+      kLangEnglish: 'No chat history yet.',
+      kLangAmharic: 'እስካሁን ምንም የውይይት ታሪክ የለም።',
+      kLangOromo: 'Seenaa haasaa amma ammatti hin jiru.',
     },
   };
 
