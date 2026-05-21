@@ -226,7 +226,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully generated $count new study cards! 🧠'),
+            content: Text('Successfully generated $count new study cards!'),
             backgroundColor: AppColors.success,
           ),
         );
