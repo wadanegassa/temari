@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/providers/bootstrap_providers.dart';
 import '../../core/providers/core_providers.dart';
+import '../../core/services/gemini_service.dart';
 import '../../features/settings/providers/settings_provider.dart';
 import '../../shared/widgets/scale_on_press.dart';
 import '../../shared/widgets/temari_button.dart';
@@ -90,9 +91,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       });
     } catch (e) {
       if (mounted) {
+        String msg = 'Failed to generate quiz. Please check your internet connection.';
+        if (e is GeminiException) {
+          msg = 'AI Error: ${e.cleanMessage}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to generate quiz: $e. Check your internet connection.'),
+            content: Text(msg),
             backgroundColor: AppColors.error,
           ),
         );
@@ -324,7 +329,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         child: Column(
                           children: [
                             Text(
-                              'Quiz Completed! 🎉',
+                              'Quiz Completed!',
                               style: AppTextStyles.h2.copyWith(color: AppColors.accent),
                             ),
                             const SizedBox(height: 8),
@@ -340,7 +345,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         children: [
                           Expanded(
                             child: TemariButton(
-                              label: 'Export Result 💾',
+                              label: 'Export Result',
                               variant: TemariButtonVariant.secondary,
                               onPressed: _saveQuizToDevice,
                             ),
@@ -348,7 +353,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: TemariButton(
-                              label: 'Retake Quiz ✦',
+                              label: 'Retake Quiz',
                               onPressed: _generateQuiz,
                             ),
                           ),
