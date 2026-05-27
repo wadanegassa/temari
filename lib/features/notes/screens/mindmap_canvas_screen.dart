@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/models/sync_task.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -83,9 +85,15 @@ class _MindMapCanvasScreenState extends ConsumerState<MindMapCanvasScreen> {
       note.mindmapJsonByLang![lang] = jsonEncode(data);
 
       await hive.upsertNote(note);
-      await ref.read(supabaseServiceProvider).pushUpsertNote(note);
+      await hive.addSyncTask(SyncTask.create(
+        action: 'upsert',
+        entityType: 'note',
+        entityId: note.id,
+        payload: note.toJson(),
+      ));
 
       ref.read(hiveTickProvider.notifier).state++;
+      unawaited(ref.read(syncServiceProvider).syncAll());
 
       setState(() {
         _mindmapData = data;

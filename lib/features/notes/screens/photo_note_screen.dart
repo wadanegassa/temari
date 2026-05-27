@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../shared/models/sync_task.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 
@@ -198,14 +200,15 @@ class _PhotoNoteScreenState extends ConsumerState<PhotoNoteScreen> {
 
     final hive = ref.read(hiveServiceProvider);
     await hive.upsertNote(note);
-
-    try {
-      await ref.read(supabaseServiceProvider).pushUpsertNote(note);
-    } catch (_) {
-      // offline sync silent fail
-    }
+    await hive.addSyncTask(SyncTask.create(
+      action: 'upsert',
+      entityType: 'note',
+      entityId: note.id,
+      payload: note.toJson(),
+    ));
 
     ref.read(hiveTickProvider.notifier).state++;
+    unawaited(ref.read(syncServiceProvider).syncAll());
     HapticFeedback.mediumImpact();
 
     if (mounted) {

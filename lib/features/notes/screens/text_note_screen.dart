@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/models/sync_task.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -101,8 +103,14 @@ class _TextNoteScreenState extends ConsumerState<TextNoteScreen> {
     n.aiExplanation = parsed[lang] ?? _explain;
     n.aiExplanationByLang = parsed;
     await ref.read(hiveServiceProvider).upsertNote(n);
-    await ref.read(supabaseServiceProvider).pushUpsertNote(n);
+    await ref.read(hiveServiceProvider).addSyncTask(SyncTask.create(
+      action: 'upsert',
+      entityType: 'note',
+      entityId: n.id,
+      payload: n.toJson(),
+    ));
     ref.read(hiveTickProvider.notifier).state++;
+    unawaited(ref.read(syncServiceProvider).syncAll());
     if (mounted) context.pop();
   }
 
