@@ -7,6 +7,7 @@ import '../../shared/models/flashcard.dart';
 import '../../shared/models/note.dart';
 import '../../shared/models/subject.dart';
 import '../../shared/models/timer_session.dart';
+import '../../shared/models/sync_task.dart';
 
 const kSettingsBox = 'settingsBox';
 const kSubjectsBox = 'subjectsBox';
@@ -14,6 +15,7 @@ const kNotesBox = 'notesBox';
 const kFlashcardsBox = 'flashcardsBox';
 const kSessionsBox = 'sessionsBox'; // Exam sessions
 const kTimerSessionsBox = 'timerSessionsBox'; // Pomodoro sessions
+const kSyncQueueBox = 'syncQueueBox';
 
 class HiveService {
   Box<Map>? _settings;
@@ -22,6 +24,7 @@ class HiveService {
   Box<Map>? _flashcards;
   Box<Map>? _sessions;
   Box<Map>? _timerSessions;
+  Box<Map>? _syncQueue;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -31,6 +34,7 @@ class HiveService {
     _flashcards = await Hive.openBox<Map>(kFlashcardsBox);
     _sessions = await Hive.openBox<Map>(kSessionsBox);
     _timerSessions = await Hive.openBox<Map>(kTimerSessionsBox);
+    _syncQueue = await Hive.openBox<Map>(kSyncQueueBox);
   }
 
   Map<String, dynamic> _castMap(dynamic v) =>
@@ -192,6 +196,7 @@ class HiveService {
     await _flashcards?.clear();
     await _sessions?.clear();
     await _timerSessions?.clear();
+    await _syncQueue?.clear();
     final uid = settingsRaw['local_user_id'];
     final lang = settingsRaw['language'] ?? 'en';
     final onboard = settingsRaw['onboarding_complete'] ?? false;
@@ -203,5 +208,112 @@ class HiveService {
       'language': lang,
       'onboarding_complete': onboard,
     });
+  }
+
+  // --- Sync Tasks (Outbox) ---
+  List<SyncTask> get syncTasks {
+    final box = _syncQueue;
+    if (box == null) return [];
+    return box.values
+        .map((e) => SyncTask.fromJson(_castMap(e)))
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  Future<void> addSyncTask(SyncTask task) async {
+    final box = _syncQueue;
+    if (box == null) return;
+
+    final existingKeys = box.keys.toList();
+    for (final key in existingKeys) {
+      final val = box.get(key);
+      if (val != null) {
+        final t = SyncTask.fromJson(_castMap(val));
+        if (t.entityId == task.entityId && t.entityType == task.entityType) {
+          if (task.action == 'delete') {
+            await box.delete(key);
+          } else if (task.action == 'upsert' && t.action == 'upsert') {
+            final updatedTask = SyncTask(
+              id: t.id,
+              action: 'upsert',
+              entityType: t.entityType,
+              entityId: t.entityId,
+              createdAt: t.createdAt,
+              payload: task.payload,
+            );
+            await box.put(key, updatedTask.toJson());
+            return;
+          }
+        }
+      }
+    }
+
+    await box.put(task.id, task.toJson());
+  }
+
+  Future<void> enqueueSyncTask(SyncTask task) async {
+    await addSyncTask(task);
+  }
+
+  Future<void> deleteSyncTask(String taskId) async {
+    await _syncQueue?.delete(taskId);
+  }
+
+  Future<void> migrateGuestData(String guestId, String newUserId) async {
+    // 1. Migrate Subjects
+    for (final s in subjects) {
+      if (s.userId == guestId) {
+        final updated = Subject.fromJson({...s.toJson(), 'user_id': newUserId});
+        await upsertSubject(updated);
+        await enqueueSyncTask(SyncTask.create(
+          action: 'upsert',
+          entityType: 'subject',
+          entityId: updated.id,
+          payload: updated.toJson(),
+        ));
+      }
+    }
+
+    // 2. Migrate Notes
+    for (final n in notes) {
+      if (n.userId == guestId) {
+        final updated = Note.fromJson({...n.toJson(), 'user_id': newUserId});
+        await upsertNote(updated);
+        await enqueueSyncTask(SyncTask.create(
+          action: 'upsert',
+          entityType: 'note',
+          entityId: updated.id,
+          payload: updated.toJson(),
+        ));
+      }
+    }
+
+    // 3. Migrate Flashcards
+    for (final f in flashcards) {
+      if (f.userId == guestId) {
+        final updated = Flashcard.fromJson({...f.toJson(), 'user_id': newUserId});
+        await upsertFlashcard(updated);
+        await enqueueSyncTask(SyncTask.create(
+          action: 'upsert',
+          entityType: 'flashcard',
+          entityId: updated.id,
+          payload: updated.toJson(),
+        ));
+      }
+    }
+
+    // 4. Migrate Exam Sessions
+    for (final es in sessions) {
+      if (es.userId == guestId) {
+        final updated = ExamSession.fromJson({...es.toJson(), 'user_id': newUserId});
+        await upsertSession(updated);
+        await enqueueSyncTask(SyncTask.create(
+          action: 'upsert',
+          entityType: 'exam_session',
+          entityId: updated.id,
+          payload: updated.toJson(),
+        ));
+      }
+    }
   }
 }
