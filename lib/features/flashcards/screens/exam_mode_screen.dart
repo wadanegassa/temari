@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +8,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
+import '../../../core/providers/core_providers.dart';
 import '../../../shared/models/exam_session.dart';
 import '../../../shared/models/flashcard.dart';
+import '../../../shared/models/sync_task.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/flashcard_widget.dart';
 import '../../../shared/widgets/scale_on_press.dart';
@@ -60,7 +63,17 @@ class _ExamModeScreenState extends ConsumerState<ExamModeScreen> {
       totalCards: _queue.length,
       correctCount: _correct,
     );
-    await ref.read(hiveServiceProvider).upsertSession(s);
+    final hive = ref.read(hiveServiceProvider);
+    await hive.upsertSession(s);
+    await hive.enqueueSyncTask(
+      SyncTask.create(
+        action: 'upsert',
+        entityType: 'exam_session',
+        entityId: s.id,
+        payload: s.toJson(),
+      ),
+    );
+    unawaited(ref.read(syncServiceProvider).syncAll());
     ref.read(hiveTickProvider.notifier).state++;
     if (mounted) context.pop();
   }
@@ -72,10 +85,18 @@ class _ExamModeScreenState extends ConsumerState<ExamModeScreen> {
     applyReviewResult(card, result);
     
     // Save locally & sync
-    ref.read(hiveServiceProvider).upsertFlashcard(card);
-    try {
-      ref.read(supabaseServiceProvider).pushUpsertFlashcard(card);
-    } catch (_) {}
+    final hive = ref.read(hiveServiceProvider);
+    hive.upsertFlashcard(card);
+    hive.enqueueSyncTask(
+      SyncTask.create(
+        action: 'upsert',
+        entityType: 'flashcard',
+        entityId: card.id,
+        payload: card.toJson(),
+      ),
+    ).then((_) {
+      unawaited(ref.read(syncServiceProvider).syncAll());
+    });
 
     if (result == 2) {
       _correct++;
