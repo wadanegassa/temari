@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../core/services/hive_service.dart';
-import '../../../core/services/supabase_service.dart';
 import '../../../shared/models/subject.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../settings/providers/settings_provider.dart';
+
+import '../../../core/providers/core_providers.dart';
+import '../../../shared/models/sync_task.dart';
 
 final subjectsProvider = Provider<List<Subject>>((ref) {
   ref.watch(authControllerProvider);
@@ -25,22 +27,27 @@ class SubjectRepository {
   final Ref ref;
 
   HiveService get _hive => ref.read(hiveServiceProvider);
-  SupabaseClient? get _client => ref.read(supabaseClientProvider);
-  SupabaseService get _sb => ref.read(supabaseServiceProvider);
 
   Future<void> save(Subject s) async {
     await _hive.upsertSubject(s);
-    await _sb.pushUpsertSubject(s);
+    await _hive.addSyncTask(SyncTask.create(
+      action: 'upsert',
+      entityType: 'subject',
+      entityId: s.id,
+      payload: s.toJson(),
+    ));
     ref.read(hiveTickProvider.notifier).state++;
+    unawaited(ref.read(syncServiceProvider).syncAll());
   }
 
   Future<void> delete(String id) async {
     await _hive.deleteSubject(id);
+    await _hive.addSyncTask(SyncTask.create(
+      action: 'delete',
+      entityType: 'subject',
+      entityId: id,
+    ));
     ref.read(hiveTickProvider.notifier).state++;
-    final c = _client;
-    final uid = c?.auth.currentUser?.id;
-    if (c != null && uid != null) {
-      await c.from('subjects').delete().eq('id', id);
-    }
+    unawaited(ref.read(syncServiceProvider).syncAll());
   }
 }

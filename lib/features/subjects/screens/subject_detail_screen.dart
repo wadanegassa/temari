@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/models/sync_task.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -499,9 +501,16 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                               question: q,
                               answer: a,
                             );
-                            await hive.upsertFlashcard(flashcard);
-                            ref.read(hiveTickProvider.notifier).state++;
-                            HapticFeedback.heavyImpact();
+                             await hive.upsertFlashcard(flashcard);
+                             await hive.addSyncTask(SyncTask.create(
+                               action: 'upsert',
+                               entityType: 'flashcard',
+                               entityId: flashcard.id,
+                               payload: flashcard.toJson(),
+                             ));
+                             ref.read(hiveTickProvider.notifier).state++;
+                             unawaited(ref.read(syncServiceProvider).syncAll());
+                             HapticFeedback.heavyImpact();
                             
                             if (context.mounted) {
                               Navigator.pop(context);
@@ -832,9 +841,15 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                         ),
                                       );
                                       if (confirm == true) {
-                                        await hive.deleteNote(note.id);
-                                        ref.read(hiveTickProvider.notifier).state++;
-                                        HapticFeedback.heavyImpact();
+                                         await hive.deleteNote(note.id);
+                                         await hive.addSyncTask(SyncTask.create(
+                                           action: 'delete',
+                                           entityType: 'note',
+                                           entityId: note.id,
+                                         ));
+                                         ref.read(hiveTickProvider.notifier).state++;
+                                         unawaited(ref.read(syncServiceProvider).syncAll());
+                                         HapticFeedback.heavyImpact();
                                       }
                                     },
                                     child: ScaleOnPress(
@@ -882,9 +897,15 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                         ),
                                       );
                                       if (confirm == true) {
-                                        await hive.deleteFlashcard(card.id);
-                                        ref.read(hiveTickProvider.notifier).state++;
-                                        HapticFeedback.heavyImpact();
+                                         await hive.deleteFlashcard(card.id);
+                                         await hive.addSyncTask(SyncTask.create(
+                                           action: 'delete',
+                                           entityType: 'flashcard',
+                                           entityId: card.id,
+                                         ));
+                                         ref.read(hiveTickProvider.notifier).state++;
+                                         unawaited(ref.read(syncServiceProvider).syncAll());
+                                         HapticFeedback.heavyImpact();
                                       }
                                     },
                                   ),
