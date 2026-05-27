@@ -8,6 +8,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/providers/bootstrap_providers.dart';
+import '../../../core/providers/core_providers.dart';
+import '../../../core/services/sync_service.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../subjects/providers/subjects_provider.dart';
 import '../widgets/recent_note_tile.dart';
@@ -158,6 +160,8 @@ class HomeScreen extends ConsumerWidget {
                         letterSpacing: -0.5,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    const _SyncStatusIndicator(),
                     const Spacer(),
                     ScaleOnPress(
                       onTap: () => context.push('/settings'),
@@ -565,3 +569,71 @@ class _QuickActionTile extends StatelessWidget {
     );
   }
 }
+
+class _SyncStatusIndicator extends ConsumerWidget {
+  const _SyncStatusIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(syncStatusProvider);
+    
+    IconData icon;
+    Color color;
+    String tooltip;
+
+    switch (status) {
+      case SyncStatus.syncing:
+        icon = Icons.sync_rounded;
+        color = AppColors.accent;
+        tooltip = 'Syncing data...';
+        break;
+      case SyncStatus.offlinePending:
+        icon = Icons.cloud_queue_rounded;
+        color = AppColors.warning;
+        tooltip = 'Offline (changes pending)';
+        break;
+      case SyncStatus.error:
+        icon = Icons.cloud_off_rounded;
+        color = AppColors.error;
+        tooltip = 'Sync error';
+        break;
+      case SyncStatus.synced:
+      default:
+        icon = Icons.cloud_done_outlined;
+        color = AppColors.success;
+        tooltip = 'All caught up!';
+        break;
+    }
+
+    Widget iconWidget = Icon(icon, size: 16, color: color);
+
+    if (status == SyncStatus.syncing) {
+      iconWidget = SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+        ),
+      );
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: () {
+          ref.read(syncServiceProvider).syncAll();
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: iconWidget,
+        ),
+      ),
+    );
+  }
+}
+
