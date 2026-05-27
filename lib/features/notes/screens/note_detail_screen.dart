@@ -13,6 +13,7 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/services/gemini_service.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../../shared/models/note.dart';
+import '../../../shared/models/sync_task.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/pro_paywall_sheet.dart';
 import '../../../shared/utils/device_save_helper.dart';
@@ -144,7 +145,15 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
       n.aiExplanation = buffer.toString();
       n.language = code;
       await hive.upsertNote(n);
-      await ref.read(supabaseServiceProvider).pushUpsertNote(n);
+      await hive.enqueueSyncTask(
+        SyncTask.create(
+          action: 'upsert',
+          entityType: 'note',
+          entityId: n.id,
+          payload: n.toJson(),
+        ),
+      );
+      unawaited(ref.read(syncServiceProvider).syncAll());
 
       ref.read(hiveTickProvider.notifier).state++;
     } catch (e) {
@@ -197,8 +206,16 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
           answer: c['answer'] ?? 'Answer',
         );
         await hive.upsertFlashcard(f);
-        await ref.read(supabaseServiceProvider).pushUpsertFlashcard(f);
+        await hive.enqueueSyncTask(
+          SyncTask.create(
+            action: 'upsert',
+            entityType: 'flashcard',
+            entityId: f.id,
+            payload: f.toJson(),
+          ),
+        );
       }
+      unawaited(ref.read(syncServiceProvider).syncAll());
 
       ref.read(hiveTickProvider.notifier).state++;
 
@@ -320,7 +337,17 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       ),
                       onSubmitted: (v) async {
                         n.title = v.trim().isEmpty ? 'Untitled Note' : v.trim();
-                        await ref.read(hiveServiceProvider).upsertNote(n);
+                        final hive = ref.read(hiveServiceProvider);
+                        await hive.upsertNote(n);
+                        await hive.enqueueSyncTask(
+                          SyncTask.create(
+                            action: 'upsert',
+                            entityType: 'note',
+                            entityId: n.id,
+                            payload: n.toJson(),
+                          ),
+                        );
+                        unawaited(ref.read(syncServiceProvider).syncAll());
                       },
                     ),
                   ),
@@ -622,9 +649,15 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                                               .firstOrNull;
                                     }
                                     await hive.upsertNote(n);
-                                    await ref
-                                        .read(supabaseServiceProvider)
-                                        .pushUpsertNote(n);
+                                    await hive.enqueueSyncTask(
+                                      SyncTask.create(
+                                        action: 'upsert',
+                                        entityType: 'note',
+                                        entityId: n.id,
+                                        payload: n.toJson(),
+                                      ),
+                                    );
+                                    unawaited(ref.read(syncServiceProvider).syncAll());
                                     ref.read(hiveTickProvider.notifier).state++;
                                     setState(() {});
                                   }
