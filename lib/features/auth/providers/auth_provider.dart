@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/providers/bootstrap_providers.dart';
+import '../../../core/providers/core_providers.dart';
 import '../../../core/services/hive_service.dart';
 import '../../../core/services/supabase_service.dart';
 
@@ -50,22 +51,34 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<Session?> signIn(String email, String password) async {
+    final guestId = _hive.settingsRaw['local_user_id'] as String? ?? '';
     final response = await _sb.signIn(email: email, password: password);
     session = response.session;
     anonymous = session == null;
     await _hive.patchSettings({'anonymous': anonymous});
-    await _sb.pullRemoteIntoHive();
+    if (session != null) {
+      final newUserId = session!.user.id;
+      if (guestId.isNotEmpty && guestId != newUserId) {
+        await _hive.migrateGuestData(guestId, newUserId);
+      }
+      unawaited(ref.read(syncServiceProvider).syncAll());
+    }
     notifyListeners();
     return session;
   }
 
   Future<Session?> signUp(String email, String password, String? name) async {
+    final guestId = _hive.settingsRaw['local_user_id'] as String? ?? '';
     final response = await _sb.signUp(email: email, password: password, displayName: name);
     session = response.session;
     anonymous = session == null;
     await _hive.patchSettings({'anonymous': anonymous});
     if (session != null) {
-      await _sb.pullRemoteIntoHive();
+      final newUserId = session!.user.id;
+      if (guestId.isNotEmpty && guestId != newUserId) {
+        await _hive.migrateGuestData(guestId, newUserId);
+      }
+      unawaited(ref.read(syncServiceProvider).syncAll());
     }
     notifyListeners();
     return session;
