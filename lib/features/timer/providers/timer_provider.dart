@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/bootstrap_providers.dart';
 import '../../../shared/models/timer_session.dart';
+import '../../home/providers/user_stats_provider.dart';
 
 enum PomodoroMode { focus, shortBreak, longBreak }
 
@@ -116,6 +117,9 @@ class TimerNotifier extends StateNotifier<TimerState> {
         completed: true,
       );
       await hive.upsertTimerSession(session);
+      
+      // Award XP for completing a Pomodoro focus session
+      ref.read(userStatsProvider.notifier).addXp(50);
       
       // Attempt pushing to cloud if configured and online
       try {

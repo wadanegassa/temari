@@ -163,6 +163,66 @@ class PomodoroTimerScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 28),
 
+                  // Soundscape Toggle (Cool Feature)
+                  Row(
+                    children: [
+                      Text(
+                        'FOCUS SOUNDSCAPE',
+                        style: AppTextStyles.label.copyWith(color: AppColors.inkLight),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ScaleOnPress(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Deep Focus White Noise activated 🌧️'),
+                          backgroundColor: AppColors.accent,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.waves_rounded, color: AppColors.accent, size: 20),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Deep Focus Rain',
+                                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.ink),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to play ambient background noise',
+                                  style: AppTextStyles.small.copyWith(color: AppColors.inkMid),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.play_circle_fill_rounded, color: AppColors.accent, size: 28),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
                   // Select Subject Context
                   Text(
                     'STUDY CONTEXT',
