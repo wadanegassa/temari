@@ -628,6 +628,48 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                           child: const Icon(Icons.edit_rounded, size: 16, color: AppColors.inkMid),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      ScaleOnPress(
+                        onTap: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                              backgroundColor: Colors.white,
+                              title: const Text('Delete Subject?', style: TextStyle(color: AppColors.ink)),
+                              content: const Text('Are you sure you want to delete this subject and all its notes and flashcards?', style: TextStyle(color: AppColors.inkLight)),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            final hive = ref.read(hiveServiceProvider);
+                            await hive.deleteSubject(subject.id);
+                            await hive.addSyncTask(SyncTask.create(
+                              action: 'delete',
+                              entityType: 'subject',
+                              entityId: subject.id,
+                            ));
+                            ref.read(hiveTickProvider.notifier).state++;
+                            unawaited(ref.read(syncServiceProvider).syncAll());
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subject deleted')));
+                              context.pop();
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.errorSoft),
+                          ),
+                          child: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.error),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -832,11 +874,12 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                       final confirm = await showDialog<bool>(
                                         context: context,
                                         builder: (c) => AlertDialog(
-                                          title: const Text('Delete Note?'),
-                                          content: const Text('Are you sure you want to delete this study note?'),
+                                          backgroundColor: Colors.white,
+                                          title: const Text('Delete Note?', style: TextStyle(color: AppColors.ink)),
+                                          content: const Text('Are you sure you want to delete this study note?', style: TextStyle(color: AppColors.inkLight)),
                                           actions: [
                                             TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete')),
+                                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
                                           ],
                                         ),
                                       );
@@ -849,6 +892,9 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                          ));
                                          ref.read(hiveTickProvider.notifier).state++;
                                          unawaited(ref.read(syncServiceProvider).syncAll());
+                                         if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note deleted')));
+                                         }
                                          HapticFeedback.heavyImpact();
                                       }
                                     },
@@ -888,11 +934,12 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                       final confirm = await showDialog<bool>(
                                         context: context,
                                         builder: (c) => AlertDialog(
-                                          title: const Text('Delete Card?'),
-                                          content: const Text('Delete this Q&A flashcard permanently?'),
+                                          backgroundColor: Colors.white,
+                                          title: const Text('Delete Card?', style: TextStyle(color: AppColors.ink)),
+                                          content: const Text('Delete this Q&A flashcard permanently?', style: TextStyle(color: AppColors.inkLight)),
                                           actions: [
                                             TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete')),
+                                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
                                           ],
                                         ),
                                       );
@@ -905,6 +952,9 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                                          ));
                                          ref.read(hiveTickProvider.notifier).state++;
                                          unawaited(ref.read(syncServiceProvider).syncAll());
+                                         if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flashcard deleted')));
+                                         }
                                          HapticFeedback.heavyImpact();
                                       }
                                     },
@@ -919,7 +969,7 @@ class _SubjectDetailScreenState extends ConsumerState<SubjectDetailScreen> {
                 // Exam mode floating CTA button
                 if (cards.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 90, 20),
                     child: TemariButton(
                       label: AppStrings.get('exam_mode', lang),
                       onPressed: () => context.push('/exam/${widget.subjectId}'),
@@ -1089,6 +1139,18 @@ class _FlashcardRowState extends State<_FlashcardRow> {
                     Icons.arrow_forward_ios_rounded,
                     size: 12,
                     color: AppColors.inkLight.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ScaleOnPress(
+                  onTap: widget.onDelete,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.bgPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.error),
                   ),
                 ),
               ],
