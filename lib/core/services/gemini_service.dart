@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -444,25 +445,24 @@ If the question is unrelated to the material, gently bring focus back.
         final url = Uri.parse(
           'https://generativelanguage.googleapis.com/v1beta/models/$modelName:streamGenerateContent',
         ).replace(queryParameters: {'key': _apiKey, 'alt': 'sse'});
-
-        final request = http.Request('POST', url)
-          ..headers['Content-Type'] = 'application/json'
-          ..body = jsonEncode(body);
-        final response = await client.send(request);
-        if (response.statusCode != 200) {
-          final err = await response.stream.bytesToString();
-          final lower = err.toLowerCase();
-          final shouldRetry =
-              response.statusCode == 404 ||
-              lower.contains('not found') ||
-              lower.contains('not supported') ||
-              lower.contains('is not found');
-          if (shouldRetry && i < candidates.length - 1) {
-            // try next candidate model
-            continue;
+        try {
+          final request = http.Request('POST', url)
+            ..headers['Content-Type'] = 'application/json'
+            ..body = jsonEncode(body);
+          final response = await client.send(request);
+          if (response.statusCode != 200) {
+            final err = await response.stream.bytesToString();
+            final lower = err.toLowerCase();
+            final shouldRetry =
+                response.statusCode == 404 ||
+                lower.contains('not found') ||
+                lower.contains('not supported') ||
+                lower.contains('is not found');
+            if (shouldRetry && i < candidates.length - 1) {
+              continue;
+            }
+            throw GeminiException(response.statusCode, err);
           }
-          throw GeminiException(response.statusCode, err);
-        }
 
         var accumulated = '';
         await for (final chunk in response.stream.transform(utf8.decoder)) {
@@ -488,8 +488,13 @@ If the question is unrelated to the material, gently bring focus back.
             }
           }
         }
-        // successful stream completed; break out of retry loop
         return;
+        } catch (e) {
+          if (e is SocketException) {
+            throw GeminiException(503, '{"error": {"message": "No internet connection. Please check your network and try again."}}');
+          }
+          rethrow;
+        }
       }
     } finally {
       client.close();
@@ -513,35 +518,43 @@ If the question is unrelated to the material, gently bring focus back.
         'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent',
       ).replace(queryParameters: {'key': _apiKey});
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt},
-              ],
-            },
-          ],
-          'generationConfig': {'temperature': 0.3},
-        }),
-      );
+      try {
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [
+              {
+                'parts': [
+                  {'text': prompt},
+                ],
+              },
+            ],
+            'generationConfig': {'temperature': 0.3},
+          }),
+        );
 
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body) as Map<String, dynamic>;
-        return _extractText(json) ?? '';
-      }
+        if (response.statusCode == 200) {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          return _extractText(json) ?? '';
+        }
 
-      final bodyStr = response.body.toLowerCase();
-      final shouldRetry =
-          response.statusCode == 404 ||
-          bodyStr.contains('not found') ||
-          bodyStr.contains('not supported') ||
-          bodyStr.contains('is not found');
+        final bodyStr = response.body.toLowerCase();
+        final shouldRetry =
+            response.statusCode == 404 ||
+            bodyStr.contains('not found') ||
+            bodyStr.contains('not supported') ||
+            bodyStr.contains('is not found');
 
-      if (!shouldRetry || i == candidates.length - 1) {
-        throw GeminiException(response.statusCode, response.body);
+        if (!shouldRetry || i == candidates.length - 1) {
+          throw GeminiException(response.statusCode, response.body);
+        }
+        // otherwise, try next candidate model
+      } catch (e) {
+        if (e is SocketException) {
+          throw GeminiException(503, '{"error": {"message": "No internet connection. Please check your network and try again."}}');
+        }
+        rethrow;
       }
       // otherwise, try next candidate model
     }
