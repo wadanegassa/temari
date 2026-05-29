@@ -4,45 +4,45 @@ class AppColors {
   AppColors._();
 
   // Backgrounds
-  static const bgPrimary    = Color(0xFFF8F5EF); // warm parchment — main bg
-  static const bgSecondary  = Color(0xFFEFEBE3); // slightly darker — section bg
-  static const bgCard       = Color(0xFFFFFFFF); // cards
-  static const bgDark       = Color(0xFF151210); // dark surfaces (bottom sheets, overlays)
+  static const bgPrimary    = Color(0xFFFFFFFF); // pure white
+  static const bgSecondary  = Color(0xFFF7F7F8); // very light gray
+  static const bgCard       = Color(0xFFFFFFFF); // white cards
+  static const bgDark       = Color(0xFF121212); // dark mode / overlays
 
   // Brand
-  static const ink          = Color(0xFF1A1714); // primary text — near black, warm
-  static const inkMid       = Color(0xFF4A4540); // secondary text
-  static const inkLight     = Color(0xFF9A948E); // tertiary / placeholder
+  static const ink          = Color(0xFF000000); // pure black text
+  static const inkMid       = Color(0xFF555555); // secondary text
+  static const inkLight     = Color(0xFFA1A1AA); // tertiary / placeholder
 
   // Accent
-  static const accent       = Color(0xFF5D4037); // rich espresso brown — primary CTA, highlights
-  static const accentSoft   = Color(0xFFEFEBE9); // soft coffee bg tint
-  static const accentGlow   = Color(0xFF8D6E63); // lighter warm brown for gradients
+  static const accent       = Color(0xFF111111); // almost black for primary CTAs
+  static const accentSoft   = Color(0xFFF4F4F5); // soft gray for subtle highlights
+  static const accentGlow   = Color(0xFF3F3F46); // dark gray for gradients
 
   // Semantic
-  static const success      = Color(0xFF2A7A4B);
-  static const successSoft  = Color(0xFFE6F5ED);
-  static const warning      = Color(0xFFB87A00);
-  static const warningSoft  = Color(0xFFFFF3D6);
-  static const error        = Color(0xFFC0392B);
-  static const errorSoft    = Color(0xFFFAEAE8);
+  static const success      = Color(0xFF16A34A);
+  static const successSoft  = Color(0xFFDCFCE7);
+  static const warning      = Color(0xFFD97706);
+  static const warningSoft  = Color(0xFFFEF3C7);
+  static const error        = Color(0xFFDC2626);
+  static const errorSoft    = Color(0xFFFEE2E2);
 
   // Borders
-  static const border       = Color(0xFFE3DDD6); // standard border
-  static const borderStrong = Color(0xFFCBC4BC); // emphasized border
+  static const border       = Color(0xFFE4E4E7); // standard border
+  static const borderStrong = Color(0xFFD4D4D8); // emphasized border
 
-  // Subject colors — warm, distinct, readable
+  // Subject colors — cool, distinct, readable
   static const subjectColors = <Color>[
-    Color(0xFF5D4037), // brown
-    Color(0xFF2E6B9E), // ocean blue
-    Color(0xFF3A7D5C), // forest green
-    Color(0xFF7B4EA0), // plum
-    Color(0xFFB5860D), // golden
-    Color(0xFF2E7D8C), // teal
-    Color(0xFFC0392B), // red
+    Color(0xFF0F172A), // slate dark
+    Color(0xFF1D4ED8), // cool blue
+    Color(0xFF047857), // emerald
+    Color(0xFF6D28D9), // vivid purple
+    Color(0xFFB45309), // amber
+    Color(0xFF0E7490), // cyan
+    Color(0xFFBE123C), // rose
   ];
 
-  // Backwards compatibility aliases to support existing unchanged widgets
+  // Backwards compatibility aliases
   static const bg = bgPrimary;
   static const primary = accent;
   static const textPrimary = ink;
