@@ -12,12 +12,14 @@ class RecentNoteTile extends StatelessWidget {
     required this.note,
     required this.subjectName,
     required this.onTap,
+    this.onDelete,
     this.subjectColor,
   });
 
   final Note note;
   final String subjectName;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
   final Color? subjectColor;
 
   IconData _icon() {
@@ -130,6 +132,15 @@ class RecentNoteTile extends StatelessWidget {
                   ),
                 ],
               ),
+              if (onDelete != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                  onPressed: onDelete,
+                ),
+              ],
             ],
           ),
         ),
