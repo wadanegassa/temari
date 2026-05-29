@@ -198,7 +198,7 @@ class _ChatBotNavBarItem extends StatelessWidget {
               ] : null,
             ),
             child: Icon(
-              Icons.smart_toy_rounded,
+              Icons.forum_rounded,
               color: isActive ? Colors.white : AppColors.accent,
               size: 20,
             ),
