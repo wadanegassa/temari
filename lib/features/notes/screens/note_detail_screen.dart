@@ -351,6 +351,48 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  ScaleOnPress(
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          backgroundColor: Colors.white,
+                          title: const Text('Delete Note?', style: TextStyle(color: AppColors.ink)),
+                          content: const Text('Are you sure you want to delete this note and all its content?', style: TextStyle(color: AppColors.inkLight)),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        final hive = ref.read(hiveServiceProvider);
+                        await hive.deleteNote(n.id);
+                        await hive.addSyncTask(SyncTask.create(
+                          action: 'delete',
+                          entityType: 'note',
+                          entityId: n.id,
+                        ));
+                        ref.read(hiveTickProvider.notifier).state++;
+                        unawaited(ref.read(syncServiceProvider).syncAll());
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note deleted')));
+                          context.pop();
+                        }
+                      }
+                    },
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.errorSoft),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.error),
+                    ),
+                  ),
                 ],
               ),
             ),
