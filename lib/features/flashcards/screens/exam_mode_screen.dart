@@ -13,6 +13,7 @@ import '../../../shared/models/exam_session.dart';
 import '../../../shared/models/flashcard.dart';
 import '../../../shared/models/sync_task.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../home/providers/user_stats_provider.dart';
 import '../widgets/flashcard_widget.dart';
 import '../../../shared/widgets/scale_on_press.dart';
 import '../../../shared/widgets/temari_button.dart';
@@ -75,6 +76,10 @@ class _ExamModeScreenState extends ConsumerState<ExamModeScreen> {
     );
     unawaited(ref.read(syncServiceProvider).syncAll());
     ref.read(hiveTickProvider.notifier).state++;
+    
+    // Reward XP for completing an exam mode session (10 XP per card)
+    ref.read(userStatsProvider.notifier).addXp(_queue.length * 10);
+    
     if (mounted) context.pop();
   }
 
