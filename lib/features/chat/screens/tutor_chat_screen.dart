@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -614,14 +615,50 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                     children: [
                       Padding(
                         padding: EdgeInsets.only(right: isUser ? 0 : 26, top: 0),
-                        child: Text(
-                          isLoadingBubble ? AppStrings.get('chat_thinking', lang) : text,
-                          style: AppTextStyles.body.copyWith(
-                            fontSize: 14,
-                            color: AppColors.ink,
-                            height: 1.45,
-                          ),
-                        ),
+                        child: isUser
+                            ? Text(
+                                text,
+                                style: AppTextStyles.body.copyWith(
+                                  fontSize: 14,
+                                  color: AppColors.ink,
+                                  height: 1.45,
+                                ),
+                              )
+                            : (isLoadingBubble
+                                ? Text(
+                                    AppStrings.get('chat_thinking', lang),
+                                    style: AppTextStyles.body.copyWith(
+                                      fontSize: 14,
+                                      color: AppColors.inkLight,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  )
+                                : MarkdownBody(
+                                    data: text,
+                                    selectable: true,
+                                    styleSheet: MarkdownStyleSheet(
+                                      p: AppTextStyles.body.copyWith(
+                                        fontSize: 14,
+                                        color: AppColors.ink,
+                                        height: 1.45,
+                                      ),
+                                      listBullet: AppTextStyles.body.copyWith(
+                                        fontSize: 14,
+                                        color: AppColors.ink,
+                                      ),
+                                      code: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        backgroundColor: AppColors.bgSecondary,
+                                        color: AppColors.accent,
+                                        fontSize: 13,
+                                      ),
+                                      codeblockPadding: const EdgeInsets.all(8),
+                                      codeblockDecoration: BoxDecoration(
+                                        color: AppColors.bgSecondary,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  )),
                       ),
                       if (!isUser && text.isNotEmpty)
                         Positioned(
