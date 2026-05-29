@@ -509,7 +509,7 @@ class _NoteDetailScreenState extends ConsumerState<NoteDetailScreen> {
                   _ActionPill(
                     label: _isGeneratingCards
                         ? 'Generating Flashcards...'
-                        : 'Generate Review Flashcards',
+                        : 'Magic Flashcards ✨',
                     color: AppColors.success,
                     onTap: _isGeneratingCards ? null : _generateFlashcards,
                   ),
