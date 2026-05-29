@@ -500,34 +500,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
       ),
       child: Row(
         children: [
-          Stack(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.accentSoft,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.smart_toy_rounded, color: AppColors.accent, size: 24),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,9 +961,9 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
   Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
     final suggestions = lang == 'am' 
-      ? ['ስለ ቢግ ኦ ኖቴሽን አስረዳኝ', 'የኢትዮጵያ ታሪክ ቁልፍ ቀናት', 'ፎቶሲንተሲስን በቀላሉ አስረዳኝ', 'ለፈተና እንዴት በብቃት ማጥናት እችላለሁ?', 'የፊዚክስ ጥናት እቅድ አውጣልኝ']
-      : (lang == 'om' ? ['Waa\'ee Big O naaf ibsi', 'Guyyoota ijoo seenaa Itoophiyaa', 'Fotosintesis salphaatti naaf ibsi', 'Akkamitti qorumsaaf qophaa\'uun danda\'ama?', 'Wixinee qorannoo fiiziksii naaf qopheessi']
-      : ['Explain Big O notation', 'Ethiopian History key dates', 'Explain Photosynthesis simply', 'How to study for finals effectively?', 'Draft a physics research outline']);
+      ? ['ስለዚህ ርዕስ በጥልቀት አስረዳኝ', 'ዋና ዋና ነጥቦቹን አጠቃልለህ አቅርብልኝ', 'ለልምምድ የሚሆን ጥያቄ አዘጋጅልኝ', 'ቁልፍ ፅንሰ-ሀሳቦቹ ምንድን ናቸው?', 'ይህን ርዕስ በምሳሌ አስረዳኝ']
+      : (lang == 'om' ? ['Mata-duree kana bal\'inaan naaf ibsi', 'Qabxiilee ijoo naaf gabaabsi', 'Gaaffii shaakalaa naaf qopheessi', 'Yaad-rimeewwan ijoo maal fa\'i?', 'Fakkeenyaan naaf ibsi']
+      : ['Explain this topic deeply', 'Summarize the key points', 'Create a practice quiz', 'What are the main concepts?', 'Explain with examples']);
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
